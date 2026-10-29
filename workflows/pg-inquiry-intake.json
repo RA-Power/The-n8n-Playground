@@ -1,0 +1,644 @@
+{
+  "name": "PG - Inquiry Intake",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## PG - Inquiry Intake (Draft, import-untested)\nSynthetic data only. No AI, no sends.\n\n1. Webhook node: pick credential **PG Webhook Secret**.\n2. Pick the data table in the 3 Data table nodes (pg_leads, pg_leads, pg_action_log).\n3. Workflow Settings > Error workflow = **PG - Error Logger**.\n4. Activate, then run **PG - Test Sender**.\n\nThe 'pg-force-error' check in Validate is a test hook. Remove before client delivery.",
+        "height": 330,
+        "width": 460,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -720,
+        -80
+      ],
+      "id": "e3f8facb-7fb1-bdb7-0d07-db244e65ebd4",
+      "name": "Note: setup"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "pg-inquiry-intake",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -200,
+        0
+      ],
+      "id": "3d52aca7-d425-c3fd-3ee1-4a0bfbea2450",
+      "name": "Webhook",
+      "webhookId": "43ae1f5e-c9a1-266c-7f4d-3ab35c8ce073"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "language": "javaScript",
+        "jsCode": "// PG intake validation. Deterministic: no AI, no external calls.\nconst body = $json.body || {};\nconst clean = (v, max) => String(v ?? '')\n  .replace(/[\\u0000-\\u001F\\u007F]/g, ' ').replace(/\\s+/g, ' ').trim().slice(0, max);\n// TEST HOOK: lets the test sender prove the error workflow works. Remove before any client delivery.\nif (body.source === 'pg-force-error') { throw new Error('PG test hook: forced error'); }\nconst errors = [];\nconst rawMessage = String(body.message ?? '');\nconst name = clean(body.name, 120);\nconst email = clean(body.email, 200).toLowerCase();\nconst phone = clean(body.phone, 40);\nconst source = clean(body.source || 'unknown', 60);\nconst message = clean(rawMessage, 2000);\nif (!name) errors.push('name_required');\nif (!email) errors.push('email_required');\nelse if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) errors.push('email_invalid');\nif (!message) errors.push('message_required');\nif (rawMessage.length > 2000) errors.push('message_too_long');\nconst leadKey = email + '|' + message.toLowerCase().slice(0, 80);\nreturn { json: { valid: errors.length === 0, errors, lead_key: leadKey,\n  name, email, phone, source, message, received_at: new Date().toISOString() } };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        40,
+        0
+      ],
+      "id": "a785cb25-609d-6410-c3de-25512588be50",
+      "name": "Validate"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "1b5aef93-6ed9-347b-0ba5-f3a5e002005a",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        280,
+        0
+      ],
+      "id": "c98830f8-7fa7-1319-a2ad-ac8da1491be0",
+      "name": "Valid?"
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "",
+          "cachedResultName": "pg_leads"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "lead_key",
+              "condition": "eq",
+              "keyValue": "={{ $json.lead_key }}"
+            }
+          ]
+        },
+        "returnAll": false,
+        "limit": 1,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [
+        520,
+        -120
+      ],
+      "id": "64fb3e1c-d692-36c9-b60f-7c3fcd39475e",
+      "name": "Check duplicate",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "d6eaaec9-3e03-97ea-e964-56c47de6a3de",
+              "leftValue": "={{ $json.id !== undefined && $json.id !== null }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        760,
+        -120
+      ],
+      "id": "7f50bc84-9794-b0a8-94b1-34379acf6ba7",
+      "name": "Is duplicate?"
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "insert",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "",
+          "cachedResultName": "pg_leads"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "lead_key": "={{ $('Validate').first().json.lead_key }}",
+            "name": "={{ $('Validate').first().json.name }}",
+            "email": "={{ $('Validate').first().json.email }}",
+            "phone": "={{ $('Validate').first().json.phone }}",
+            "source": "={{ $('Validate').first().json.source }}",
+            "message": "={{ $('Validate').first().json.message }}",
+            "status": "new",
+            "received_at": "={{ $('Validate').first().json.received_at }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "lead_key",
+              "displayName": "lead_key",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "name",
+              "displayName": "name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "phone",
+              "displayName": "phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "source",
+              "displayName": "source",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "message",
+              "displayName": "message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "received_at",
+              "displayName": "received_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        -60
+      ],
+      "id": "0bf5b494-3903-4d88-d57a-8c5b64ce6a89",
+      "name": "Insert lead"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "4db92bf7-227a-f0c7-9a47-2764143b015f",
+              "name": "outcome",
+              "value": "lead_created",
+              "type": "string"
+            },
+            {
+              "id": "93130b6a-985c-0ccf-7864-ab65d27d895d",
+              "name": "http_code",
+              "value": 200,
+              "type": "number"
+            },
+            {
+              "id": "1560f2d7-6f6f-a9be-044e-356eddbb3f9a",
+              "name": "response_json",
+              "value": "={{ JSON.stringify({ status: 'received' }) }}",
+              "type": "string"
+            },
+            {
+              "id": "11664a7a-5585-638b-a578-2c612598e981",
+              "name": "lead_key",
+              "value": "={{ $('Validate').first().json.lead_key }}",
+              "type": "string"
+            },
+            {
+              "id": "c4eb8a71-e3be-25e4-5515-be68ad875af3",
+              "name": "detail",
+              "value": "={{ 'source=' + $('Validate').first().json.source }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1240,
+        -60
+      ],
+      "id": "3ee7baeb-7eb5-c65a-460d-bca146fa7301",
+      "name": "Outcome: created"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f9c65d10-9206-30b8-704a-09713b793428",
+              "name": "outcome",
+              "value": "duplicate_ignored",
+              "type": "string"
+            },
+            {
+              "id": "93130b6a-985c-0ccf-7864-ab65d27d895d",
+              "name": "http_code",
+              "value": 200,
+              "type": "number"
+            },
+            {
+              "id": "f9e6c05a-a4a8-8eea-c41d-26fcd5471dce",
+              "name": "response_json",
+              "value": "={{ JSON.stringify({ status: 'duplicate_ignored' }) }}",
+              "type": "string"
+            },
+            {
+              "id": "11664a7a-5585-638b-a578-2c612598e981",
+              "name": "lead_key",
+              "value": "={{ $('Validate').first().json.lead_key }}",
+              "type": "string"
+            },
+            {
+              "id": "c4eb8a71-e3be-25e4-5515-be68ad875af3",
+              "name": "detail",
+              "value": "={{ 'source=' + $('Validate').first().json.source }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1000,
+        -220
+      ],
+      "id": "5019f855-12aa-972e-b292-0f7a76409aa4",
+      "name": "Outcome: duplicate"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "95c2294f-09fd-8025-a774-456c082ce0b4",
+              "name": "outcome",
+              "value": "rejected_invalid",
+              "type": "string"
+            },
+            {
+              "id": "a9777765-1a4a-7ccb-a1a5-0603c41c793a",
+              "name": "http_code",
+              "value": 400,
+              "type": "number"
+            },
+            {
+              "id": "49e5d67f-d472-9823-fdc0-3f9d37dc95d0",
+              "name": "response_json",
+              "value": "={{ JSON.stringify({ status: 'rejected', errors: $json.errors }) }}",
+              "type": "string"
+            },
+            {
+              "id": "b3584bd8-f094-cc30-e9ab-a54c804271fc",
+              "name": "lead_key",
+              "value": "={{ $json.lead_key }}",
+              "type": "string"
+            },
+            {
+              "id": "ebc5868a-743a-9ea9-2822-39b1e95fb2b7",
+              "name": "detail",
+              "value": "={{ $json.errors.join(',') }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": false,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        520,
+        140
+      ],
+      "id": "7c5c1789-2265-bdaa-4f0d-3674e32e5ea4",
+      "name": "Outcome: rejected"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json.response_json }}",
+        "options": {
+          "responseCode": "={{ $json.http_code }}"
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        1500,
+        0
+      ],
+      "id": "c56570b6-abf5-a3fe-891e-96541b766b1f",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "resource": "row",
+        "operation": "insert",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "",
+          "cachedResultName": "pg_action_log"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "logged_at": "={{ $now.toISO() }}",
+            "workflow": "PG - Inquiry Intake",
+            "outcome": "={{ $json.outcome }}",
+            "lead_key": "={{ $json.lead_key }}",
+            "detail": "={{ $json.detail }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "logged_at",
+              "displayName": "logged_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "workflow",
+              "displayName": "workflow",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "outcome",
+              "displayName": "outcome",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "lead_key",
+              "displayName": "lead_key",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "detail",
+              "displayName": "detail",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [
+        1740,
+        0
+      ],
+      "id": "a5e5d7c2-5ec1-27bc-97dd-c3ef497ce883",
+      "name": "Log action"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate": {
+      "main": [
+        [
+          {
+            "node": "Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Valid?": {
+      "main": [
+        [
+          {
+            "node": "Check duplicate",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Outcome: rejected",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check duplicate": {
+      "main": [
+        [
+          {
+            "node": "Is duplicate?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is duplicate?": {
+      "main": [
+        [
+          {
+            "node": "Outcome: duplicate",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Insert lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert lead": {
+      "main": [
+        [
+          {
+            "node": "Outcome: created",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Outcome: created": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Outcome: duplicate": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Outcome: rejected": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond to Webhook": {
+      "main": [
+        [
+          {
+            "node": "Log action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}
