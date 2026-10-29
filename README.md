@@ -6,10 +6,9 @@ Synthetic-only practice area for Michael's n8n builds. Nothing here touches a re
 
 | Item | State |
 |---|---|
-| `workflows/pg-inquiry-intake.json` | **Drafted.** Static checks pass (valid JSON, connections point at real nodes). Not yet imported or run in n8n. |
-| `workflows/pg-error-logger.json` | **Drafted.** Same. Email alert node is disabled. |
-| `workflows/pg-test-sender.json` | **Drafted.** Same. |
-| Acceptance tests (`docs/test-plan.md`) | **Not run.** Nothing is "tested" until the PASS/FAIL table is filled from a real run. |
+| PG - Inquiry Intake, PG - Error Logger, PG - Test Sender (in n8n PG-Sandbox) | **Built, tested, published (sandbox only).** 8 of 8 acceptance tests PASS on synthetic data, 2026-10-30. Not commercially validated. Source: `sdk/`. |
+| `workflows/*.json` | **Superseded** early paste-import drafts, never imported. |
+| Acceptance tests (`docs/test-plan.md`) | **Run.** Results recorded; scope limits noted there. |
 
 ## Approved envelope (Michael, 2026-10-30)
 

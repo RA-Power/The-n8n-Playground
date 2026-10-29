@@ -1,17 +1,17 @@
 # Build 1 + 5 acceptance tests
 
-Run **PG - Test Sender** after setup (see README). Mark results from the real run only. Until then every row is `Not run`.
+Run date: 2026-10-30. T1-T4 and T6 were manual executions through the n8n connector (logic and table writes only; HTTP codes and the key check are not exercised in manual mode). T5, T7 and T8 were real HTTP calls from PG - Test Sender to the published webhook. Synthetic data only; nothing was emailed.
 
 | Case | What is sent | Expected HTTP | Expected status | pg_leads | pg_action_log outcome | Result |
 |---|---|---|---|---|---|---|
-| T1 | Valid synthetic lead | 200 | received | +1 row | lead_created | Not run |
-| T2 | Same lead again | 200 | duplicate_ignored | no new row | duplicate_ignored | Not run |
-| T3 | Email missing | 400 | rejected | none | rejected_invalid (email_required) | Not run |
-| T4 | Email malformed | 400 | rejected | none | rejected_invalid (email_invalid) | Not run |
-| T5 | Message over 2000 chars | 400 | rejected | none | rejected_invalid (message_too_long) | Not run |
-| T6 | Injection-style text in message | 200 | received | +1 row, text stored as plain text | lead_created | Not run |
-| T7 | Forced error (`source=pg-force-error`) | 500 | n/a | none | workflow_error (from Error Logger) | Not run |
-| T8 | No key header | 403 | n/a | none | no row (request never reaches workflow) | Not run |
+| T1 | Valid synthetic lead | 200 | received | +1 row | lead_created | PASS (manual run: lead row + log lead_created) |
+| T2 | Same lead again | 200 | duplicate_ignored | no new row | duplicate_ignored | PASS (manual run: no 2nd lead row, log duplicate_ignored) |
+| T3 | Email missing | 400 | rejected | none | rejected_invalid (email_required) | PASS (manual run: not stored, log email_required) |
+| T4 | Email malformed | 400 | rejected | none | rejected_invalid (email_invalid) | PASS (manual run: not stored, log email_invalid) |
+| T5 | Message over 2000 chars | 400 | rejected | none | rejected_invalid (message_too_long) | PASS (real HTTP via Test Sender: 400 rejected, log message_too_long) |
+| T6 | Injection-style text in message | 200 | received | +1 row, text stored as plain text | lead_created | PASS (manual run: stored as plain text, log lead_created) |
+| T7 | Forced error (`source=pg-force-error`) | 500 | n/a | none | workflow_error (from Error Logger) | PASS (real HTTP: 500, error workflow logged workflow_error) |
+| T8 | No key header | 403 | n/a | none | no row (request never reaches workflow) | PASS (real HTTP: 403 without key) |
 
 ## Also check by eye
 
@@ -21,6 +21,7 @@ Run **PG - Test Sender** after setup (see README). Mark results from the real ru
 
 ## Known gaps to report honestly
 
-- Files were authored without running n8n: node parameter shapes (Data table nodes especially) may need a fix after first import.
+- The workflows were rebuilt through the n8n SDK and are the source of truth in PG-Sandbox. The older `workflows/*.json` paste-import files are superseded and were never imported.
+- Not yet tested: a request with a wrong (not missing) key; the Error Logger records "unknown node" instead of the failing node name (cosmetic, fix pending).
 - The `pg-force-error` hook is test-only and must be removed before any client delivery.
 - Header Auth proves a shared-secret check only. It is not a full security review.
