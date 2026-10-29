@@ -20,3 +20,9 @@ Also fixed and verified: Error Logger now names the failing node (`Validate: PG 
 - Drafts are one fixed template. The injection-style lead received the same draft, so message text does not steer the draft. No AI drafting is tested.
 - "Approved" means recorded only. There is no send step. A real send needs a Gmail credential and fresh approval.
 - Drafts use only the first-name field. Wording is generic, not tuned for real estate.
+
+## Update: real estate template + HTTP checks (2026-10-30)
+- Decision webhook published for test, then unpublished with intake. Real HTTP: invalid decision 400, unknown lead 404, no key 403, wrong key 403 (both webhooks), approve on a real pending draft 200 `approved_not_sent`. All as expected. Wrong-key case now tested for intake too.
+- Draft template now routes by inquiry type with deterministic keyword rules (buyer, seller, renter, general). 4 synthetic leads each got the matching draft (PASS). Wording is generic test copy, written by Claude, not reviewed by a real agent. Drafts use a `[Your name]` placeholder.
+- Gmail credential created in PG-Sandbox by Michael (default name "Gmail account 2"). No send step built or run yet.
+- Intake and decision webhooks are currently unpublished (publish/unpublish is a one-call toggle).
