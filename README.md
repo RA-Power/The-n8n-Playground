@@ -2,26 +2,44 @@
 
 Synthetic-only practice area for Michael's n8n builds. Nothing here touches a real client, real contact, or real inbox.
 
-## Status (honest labels)
+## Status (honest labels, 2026-10-30)
 
-| Item | State |
-|---|---|
-| PG - Inquiry Intake, PG - Error Logger, PG - Test Sender (in n8n PG-Sandbox) | **Built, tested, published (sandbox only).** 8 of 8 acceptance tests PASS on synthetic data, 2026-10-30. Not commercially validated. Source: `sdk/`. |
-| Build 2: PG - Draft Replies, PG - Draft Decision (draft-then-approve, no send) | **Built and tested by manual runs only** (7 of 7 PASS, `docs/build2-test-results.md`). Decision webhook not published. No send, no AI. |
-| `workflows/*.json` | **Superseded** early paste-import drafts, never imported. |
-| Acceptance tests (`docs/test-plan.md`) | **Run.** Results recorded; scope limits noted there. |
+All work is in n8n project **PG-Sandbox**, on synthetic data. "Tested" means observed behavior in the sandbox, not commercial results.
+
+| Build | Workflows | State |
+|---|---|---|
+| 1 Secure intake | PG - Inquiry Intake | **Built and tested.** 8/8 acceptance tests, plus real-HTTP wrong-key, no-key and bad-input checks. Webhook currently unpublished. |
+| 2 Draft then approve | PG - Draft Replies, PG - Draft Decision | **Built and tested.** Deterministic real estate template (buyer/seller/renter/general). Approval link tested through the real webhook with the stored key. Webhook currently unpublished. |
+| 2b AI drafting | PG - AI Draft Test | **Tested once.** 3 synthetic leads, Claude Haiku 5.5 on Gateway credits, 955 tokens, cost under one cent (balance still $1.99). Not wired into Draft Replies. |
+| 2c Send step | PG - Send Approved (test) | **Tested.** 5 emails to Michael's own inbox only (address hard-coded, max 5 per run, subject tagged). No lead address is ever used. |
+| 3 Keep-in-touch | PG - Keep in Touch Drafts | **Built and tested, draft-only.** Guards: opted-out/replied, 90-day gap, 3-touch cap, no duplicate pending draft. No send, no reply detector. |
+| 4 Showing scheduler | PG - Showing Proposals, PG - Showing Hold | **Built and tested without Telegram or Calendar.** Hold is a table row, double-booking guard works. |
+| 5 Action log + errors | pg_action_log, PG - Error Logger | **Built and tested.** Every outcome logged; crashes logged by the error workflow. |
+| Test helpers | Test Sender, Test Sender 2, Batch Approve, Test Decision Link, Approve Showings, Seed Builds 3-4 | Synthetic only. Delete before any client delivery. |
+
+Superseded: `workflows/*.json` (early paste-import drafts, never imported).
 
 ## Approved envelope (Michael, 2026-10-30)
 
-- **Where:** n8n workspace `rapower.app.n8n.cloud`, project **PG-Sandbox** only.
-- **Data:** synthetic only (`example.com` addresses, made-up text). No real contacts, no client data.
-- **Sends:** none. The only possible send is the Error Logger email alert to `michael.henry.miller@remote-advisor.com`, disabled until Michael creates a Gmail credential inside PG-Sandbox.
-- **AI / paid calls:** none in this round (Build 1 + 5 are deterministic). Build 2 will need an Anthropic key with a low spend cap, approved separately.
-- **GoHighLevel:** not used. No GHL reads or writes.
-- **Credentials:** created by Michael inside PG-Sandbox. Never pasted into chat, files, or this repo. The only secret this round is the webhook key (`PG Webhook Secret`, Header Auth).
-- **Do not touch:** any Cadence/FRC workflow or credential. Originals stay Active and unchanged.
+- **Where:** `rapower.app.n8n.cloud`, project **PG-Sandbox** only.
+- **Data:** synthetic only (`example.com` addresses, made-up text).
+- **Sends:** only to michael.henry.miller@remote-advisor.com, only through PG - Send Approved (test), each batch approved by Michael first.
+- **AI:** limited tests on n8n Gateway credits (balance $1.99; no top-up bought).
+- **GoHighLevel:** not used.
+- **Credentials:** created by Michael inside PG-Sandbox (PG Webhook Secret, Gmail). Never in chat, files, or this repo.
+- **Do not touch:** Cadence/FRC workflows and credentials.
 
-## What Build 1 + 5 proves (and does not)
+## Known gaps
+
+- Draft wording is Claude-written test copy, not reviewed by a real agent.
+- No real website form connected; no real inbox watching.
+- Build 3 has no reply/STOP detector; Build 4 has no Telegram approval or Calendar write.
+- Full source for several workflows lives only in n8n (SDK source saved here for Intake and Build 3).
+- `pg-force-error` test hook in Intake must be removed before client delivery.
+- n8n licensing for client delivery is unverified (client workflows should run on the client's own instance; ask license@n8n.io).
+- Header Auth is a shared-secret check, not a security review.
+
+## What Builds 1 + 5 prove (and do not)
 
 Proves, once tested: a front-door that refuses callers without the key, rejects bad input, ignores duplicates, stores good leads, logs every outcome, and logs crashes through a separate error workflow.
 
