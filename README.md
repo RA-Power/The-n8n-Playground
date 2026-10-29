@@ -7,6 +7,7 @@ Synthetic-only practice area for Michael's n8n builds. Nothing here touches a re
 | Item | State |
 |---|---|
 | PG - Inquiry Intake, PG - Error Logger, PG - Test Sender (in n8n PG-Sandbox) | **Built, tested, published (sandbox only).** 8 of 8 acceptance tests PASS on synthetic data, 2026-10-30. Not commercially validated. Source: `sdk/`. |
+| Build 2: PG - Draft Replies, PG - Draft Decision (draft-then-approve, no send) | **Built and tested by manual runs only** (7 of 7 PASS, `docs/build2-test-results.md`). Decision webhook not published. No send, no AI. |
 | `workflows/*.json` | **Superseded** early paste-import drafts, never imported. |
 | Acceptance tests (`docs/test-plan.md`) | **Run.** Results recorded; scope limits noted there. |
 
