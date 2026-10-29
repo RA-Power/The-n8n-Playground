@@ -1,0 +1,511 @@
+{
+ "id": "KgwkA6PMttCzXOAy",
+ "name": "PG - Draft Decision",
+ "description": "Synthetic sandbox. Human approve/reject of a pending draft. Records the decision only; never sends.",
+ "nodes": [
+  {
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "079p9QBOgk299kHt",
+     "name": "PG Webhook Secret"
+    }
+   },
+   "id": "5b94fd14-3705-485d-a100-4e28f87ee385",
+   "name": "Webhook",
+   "parameters": {
+    "authentication": "headerAuth",
+    "httpMethod": "POST",
+    "options": {},
+    "path": "pg-draft-decision",
+    "responseMode": "responseNode"
+   },
+   "position": [
+    -200,
+    0
+   ],
+   "type": "n8n-nodes-base.webhook",
+   "typeVersion": 2.1
+  },
+  {
+   "id": "b4a5ac0f-89ea-4485-91af-358be02987b6",
+   "name": "Validate",
+   "parameters": {
+    "jsCode": "const body = $json.body || {};\nconst leadKey = String(body.lead_key == null ? '' : body.lead_key).trim().slice(0, 400);\nconst decision = String(body.decision == null ? '' : body.decision).trim().toLowerCase();\nconst note = String(body.note == null ? '' : body.note).replace(/\\s+/g, ' ').trim().slice(0, 300);\nconst errors = [];\nif (!leadKey) errors.push('lead_key_required');\nif (decision !== 'approve' && decision !== 'reject') errors.push('decision_must_be_approve_or_reject');\nreturn { json: { valid: errors.length === 0, errors: errors, lead_key: leadKey, decision: decision, note: note } };",
+    "language": "javaScript",
+    "mode": "runOnceForEachItem"
+   },
+   "position": [
+    40,
+    0
+   ],
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2
+  },
+  {
+   "id": "86ec9b35-6d41-4705-8fb4-17c2c6e261d4",
+   "name": "Valid?",
+   "parameters": {
+    "conditions": {
+     "combinator": "and",
+     "conditions": [
+      {
+       "leftValue": "={{ $json.valid }}",
+       "operator": {
+        "operation": "true",
+        "singleValue": true,
+        "type": "boolean"
+       }
+      }
+     ],
+     "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "loose"
+     }
+    }
+   },
+   "position": [
+    280,
+    0
+   ],
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.2
+  },
+  {
+   "alwaysOutputData": true,
+   "id": "89d4ea37-ab32-4d39-b97e-309174354554",
+   "name": "Find pending draft",
+   "parameters": {
+    "dataTableId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "Dk3MTDtDuKcTf9JD"
+    },
+    "filters": {
+     "conditions": [
+      {
+       "condition": "eq",
+       "keyName": "lead_key",
+       "keyValue": "={{ $json.lead_key }}"
+      },
+      {
+       "condition": "eq",
+       "keyName": "status",
+       "keyValue": "pending"
+      }
+     ]
+    },
+    "limit": 1,
+    "matchType": "allConditions",
+    "operation": "get",
+    "resource": "row",
+    "returnAll": false
+   },
+   "position": [
+    520,
+    -120
+   ],
+   "type": "n8n-nodes-base.dataTable",
+   "typeVersion": 1.1
+  },
+  {
+   "id": "4b5bcf57-3507-4a13-936f-2ab6160570d4",
+   "name": "Found?",
+   "parameters": {
+    "conditions": {
+     "combinator": "and",
+     "conditions": [
+      {
+       "leftValue": "={{ $json.id !== undefined && $json.id !== null }}",
+       "operator": {
+        "operation": "true",
+        "singleValue": true,
+        "type": "boolean"
+       }
+      }
+     ],
+     "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "loose"
+     }
+    }
+   },
+   "position": [
+    760,
+    -120
+   ],
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.2
+  },
+  {
+   "id": "a4e5b365-b492-48f1-b084-f63b8e40c71a",
+   "name": "Record decision",
+   "parameters": {
+    "columns": {
+     "mappingMode": "defineBelow",
+     "matchingColumns": [],
+     "schema": [],
+     "value": {
+      "decided_at": "={{ $now.toISO() }}",
+      "decision_note": "={{ $('Validate').item.json.note }}",
+      "status": "={{ $('Validate').item.json.decision === 'approve' ? 'approved_not_sent' : 'rejected' }}"
+     }
+    },
+    "dataTableId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "Dk3MTDtDuKcTf9JD"
+    },
+    "filters": {
+     "conditions": [
+      {
+       "condition": "eq",
+       "keyName": "lead_key",
+       "keyValue": "={{ $('Validate').item.json.lead_key }}"
+      }
+     ]
+    },
+    "matchType": "allConditions",
+    "operation": "update",
+    "resource": "row"
+   },
+   "position": [
+    1000,
+    -200
+   ],
+   "type": "n8n-nodes-base.dataTable",
+   "typeVersion": 1.1
+  },
+  {
+   "id": "be74bc39-9111-4699-90fc-551d1e7fc19b",
+   "name": "Outcome: decided",
+   "parameters": {
+    "assignments": {
+     "assignments": [
+      {
+       "id": "d1",
+       "name": "outcome",
+       "type": "string",
+       "value": "={{ $('Validate').item.json.decision === 'approve' ? 'draft_approved_not_sent' : 'draft_rejected' }}"
+      },
+      {
+       "id": "d2",
+       "name": "http_code",
+       "type": "number",
+       "value": 200
+      },
+      {
+       "id": "d3",
+       "name": "response_json",
+       "type": "string",
+       "value": "={{ JSON.stringify({ status: $('Validate').item.json.decision === 'approve' ? 'approved_not_sent' : 'rejected' }) }}"
+      },
+      {
+       "id": "d4",
+       "name": "lead_key",
+       "type": "string",
+       "value": "={{ $('Validate').item.json.lead_key }}"
+      },
+      {
+       "id": "d5",
+       "name": "detail",
+       "type": "string",
+       "value": "={{ 'note=' + $('Validate').item.json.note }}"
+      }
+     ]
+    },
+    "includeOtherFields": false,
+    "mode": "manual"
+   },
+   "position": [
+    1240,
+    -200
+   ],
+   "type": "n8n-nodes-base.set",
+   "typeVersion": 3.4
+  },
+  {
+   "id": "e323e6d5-0008-4952-9489-fff6154070d3",
+   "name": "Respond to Webhook",
+   "parameters": {
+    "options": {
+     "responseCode": "={{ $json.http_code }}",
+     "responseHeaders": {
+      "entries": [
+       {
+        "name": "Content-Type",
+        "value": "application/json"
+       }
+      ]
+     }
+    },
+    "respondWith": "text",
+    "responseBody": "={{ $json.response_json }}"
+   },
+   "position": [
+    1500,
+    0
+   ],
+   "type": "n8n-nodes-base.respondToWebhook",
+   "typeVersion": 1.4
+  },
+  {
+   "id": "9a443f44-5184-454b-9099-3dcdc69b1b42",
+   "name": "Log decision",
+   "parameters": {
+    "columns": {
+     "mappingMode": "defineBelow",
+     "matchingColumns": [],
+     "schema": [],
+     "value": {
+      "detail": "={{ $('Respond to Webhook').item.json.detail }}",
+      "lead_key": "={{ $('Respond to Webhook').item.json.lead_key }}",
+      "logged_at": "={{ $now.toISO() }}",
+      "outcome": "={{ $('Respond to Webhook').item.json.outcome }}",
+      "workflow": "PG - Draft Decision"
+     }
+    },
+    "dataTableId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "Mokhl3J3DiBVad0D"
+    },
+    "operation": "insert",
+    "resource": "row"
+   },
+   "position": [
+    1740,
+    0
+   ],
+   "type": "n8n-nodes-base.dataTable",
+   "typeVersion": 1.1
+  },
+  {
+   "id": "c5f75765-1556-4421-a789-4df29cf623de",
+   "name": "Outcome: not found",
+   "parameters": {
+    "assignments": {
+     "assignments": [
+      {
+       "id": "e1",
+       "name": "outcome",
+       "type": "string",
+       "value": "decision_no_pending_draft"
+      },
+      {
+       "id": "e2",
+       "name": "http_code",
+       "type": "number",
+       "value": 404
+      },
+      {
+       "id": "e3",
+       "name": "response_json",
+       "type": "string",
+       "value": "={{ JSON.stringify({ status: 'no_pending_draft' }) }}"
+      },
+      {
+       "id": "e4",
+       "name": "lead_key",
+       "type": "string",
+       "value": "={{ $('Validate').item.json.lead_key }}"
+      },
+      {
+       "id": "e5",
+       "name": "detail",
+       "type": "string",
+       "value": "no pending draft for this lead_key"
+      }
+     ]
+    },
+    "includeOtherFields": false,
+    "mode": "manual"
+   },
+   "position": [
+    1000,
+    -20
+   ],
+   "type": "n8n-nodes-base.set",
+   "typeVersion": 3.4
+  },
+  {
+   "id": "9f665a71-eae7-45aa-9d3e-b1d55cd791ed",
+   "name": "Outcome: invalid",
+   "parameters": {
+    "assignments": {
+     "assignments": [
+      {
+       "id": "f1",
+       "name": "outcome",
+       "type": "string",
+       "value": "decision_rejected_invalid"
+      },
+      {
+       "id": "f2",
+       "name": "http_code",
+       "type": "number",
+       "value": 400
+      },
+      {
+       "id": "f3",
+       "name": "response_json",
+       "type": "string",
+       "value": "={{ JSON.stringify({ status: 'rejected', errors: $json.errors }) }}"
+      },
+      {
+       "id": "f4",
+       "name": "lead_key",
+       "type": "string",
+       "value": "={{ $json.lead_key }}"
+      },
+      {
+       "id": "f5",
+       "name": "detail",
+       "type": "string",
+       "value": "={{ $json.errors.join(',') }}"
+      }
+     ]
+    },
+    "includeOtherFields": false,
+    "mode": "manual"
+   },
+   "position": [
+    520,
+    140
+   ],
+   "type": "n8n-nodes-base.set",
+   "typeVersion": 3.4
+  }
+ ],
+ "connections": {
+  "Find pending draft": {
+   "main": [
+    [
+     {
+      "index": 0,
+      "node": "Found?",
+      "type": "main"
+     }
+    ]
+   ]
+  },
+  "Found?": {
+   "main": [
+    [
+     {
+      "index": 0,
+      "node": "Record decision",
+      "type": "main"
+     }
+    ],
+    [
+     {
+      "index": 0,
+      "node": "Outcome: not found",
+      "type": "main"
+     }
+    ]
+   ]
+  },
+  "Outcome: decided": {
+   "main": [
+    [
+     {
+      "index": 0,
+      "node": "Respond to Webhook",
+      "type": "main"
+     }
+    ]
+   ]
+  },
+  "Outcome: invalid": {
+   "main": [
+    [
+     {
+      "index": 0,
+      "node": "Respond to Webhook",
+      "type": "main"
+     }
+    ]
+   ]
+  },
+  "Outcome: not found": {
+   "main": [
+    [
+     {
+      "index": 0,
+      "node": "Respond to Webhook",
+      "type": "main"
+     }
+    ]
+   ]
+  },
+  "Record decision": {
+   "main": [
+    [
+     {
+      "index": 0,
+      "node": "Outcome: decided",
+      "type": "main"
+     }
+    ]
+   ]
+  },
+  "Respond to Webhook": {
+   "main": [
+    [
+     {
+      "index": 0,
+      "node": "Log decision",
+      "type": "main"
+     }
+    ]
+   ]
+  },
+  "Valid?": {
+   "main": [
+    [
+     {
+      "index": 0,
+      "node": "Find pending draft",
+      "type": "main"
+     }
+    ],
+    [
+     {
+      "index": 0,
+      "node": "Outcome: invalid",
+      "type": "main"
+     }
+    ]
+   ]
+  },
+  "Validate": {
+   "main": [
+    [
+     {
+      "index": 0,
+      "node": "Valid?",
+      "type": "main"
+     }
+    ]
+   ]
+  },
+  "Webhook": {
+   "main": [
+    [
+     {
+      "index": 0,
+      "node": "Validate",
+      "type": "main"
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "availableInMCP": true,
+  "executionOrder": "v1"
+ }
+}

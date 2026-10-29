@@ -1,0 +1,114 @@
+{
+ "id": "yu3Zk4buk31K7IjG",
+ "name": "PG - AI Draft Test",
+ "description": "Synthetic-only test of AI-written draft replies via Gateway credits. 3 fixed leads, no sends.",
+ "nodes": [
+  {
+   "id": "a65fe5da-e10f-4491-aa9f-7b3ae313c225",
+   "name": "Start",
+   "parameters": {},
+   "position": [
+    0,
+    112
+   ],
+   "type": "n8n-nodes-base.manualTrigger",
+   "typeVersion": 1
+  },
+  {
+   "id": "d8d0d1a7-c04e-4402-90a6-b5dacd72cd47",
+   "name": "Three synthetic leads",
+   "parameters": {
+    "jsCode": "return [\n  { json: { name: 'Synthetic Buyer', message: 'Looking to buy a 3 bedroom house near good schools, budget around the mid range, hoping to move in spring.' } },\n  { json: { name: 'Synthetic Seller', message: 'Thinking about selling my condo next year, curious what it is worth.' } },\n  { json: { name: 'Synthetic Renter', message: 'Need a 2 bedroom rental, can start next month, one small dog.' } }\n];"
+   },
+   "position": [
+    224,
+    112
+   ],
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2
+  },
+  {
+   "id": "1da9f2da-4bb8-4e2a-8faf-4091eace7ea9",
+   "name": "Write draft reply",
+   "parameters": {
+    "batching": {},
+    "messages": {
+     "messageValues": [
+      {
+       "message": "You draft replies for a real estate agent to review. Never promise prices or availability."
+      }
+     ]
+    },
+    "promptType": "define",
+    "text": "=Write a short, warm, plain-text email reply (max 90 words) from a real estate agent to this inquiry. Do not invent listings, prices, or facts. End by suggesting a quick call. Sign off with [Your name]. Inquiry from {{ $json.name }}: {{ $json.message }}"
+   },
+   "position": [
+    448,
+    112
+   ],
+   "type": "@n8n/n8n-nodes-langchain.chainLlm",
+   "typeVersion": 1.7
+  },
+  {
+   "id": "ff0b158e-c10b-4e80-8a56-cbcbfa26e4b4",
+   "name": "Anthropic Model",
+   "parameters": {
+    "model": {
+     "__rl": true,
+     "cachedResultName": "Claude Haiku 5.5",
+     "mode": "list",
+     "value": "claude-haiku-5-5"
+    },
+    "options": {
+     "maxTokensToSample": 300
+    }
+   },
+   "position": [
+    528,
+    336
+   ],
+   "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+   "typeVersion": 1.3
+  }
+ ],
+ "connections": {
+  "Anthropic Model": {
+   "ai_languageModel": [
+    [
+     {
+      "index": 0,
+      "node": "Write draft reply",
+      "type": "ai_languageModel"
+     }
+    ]
+   ]
+  },
+  "Start": {
+   "main": [
+    [
+     {
+      "index": 0,
+      "node": "Three synthetic leads",
+      "type": "main"
+     }
+    ]
+   ]
+  },
+  "Three synthetic leads": {
+   "main": [
+    [
+     {
+      "index": 0,
+      "node": "Write draft reply",
+      "type": "main"
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "availableInMCP": true,
+  "binaryMode": "separate",
+  "executionOrder": "v1"
+ }
+}

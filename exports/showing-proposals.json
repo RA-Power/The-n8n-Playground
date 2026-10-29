@@ -1,0 +1,173 @@
+{
+ "id": "CEbUg0XIPJ31tZas",
+ "name": "PG - Showing Proposals",
+ "description": "Sandbox, manual, draft-only. New showing requests get up to 3 proposed slots (morning or afternoon), skipping slots already held; bad or past dates go to needs_info. Writes a draft reply; never sends; no calendar yet.",
+ "nodes": [
+  {
+   "id": "731ad8f4-d3c4-4250-81b1-d972b3ecdc4c",
+   "name": "Manual Trigger",
+   "parameters": {},
+   "position": [
+    0,
+    0
+   ],
+   "type": "n8n-nodes-base.manualTrigger",
+   "typeVersion": 1
+  },
+  {
+   "id": "91780c1a-348a-4520-859b-d7bb91b9a16f",
+   "name": "Get showings",
+   "parameters": {
+    "dataTableId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "6lpDzAPx8d0I9RqA"
+    },
+    "operation": "get",
+    "resource": "row",
+    "returnAll": true
+   },
+   "position": [
+    224,
+    0
+   ],
+   "type": "n8n-nodes-base.dataTable",
+   "typeVersion": 1.1
+  },
+  {
+   "id": "ab027f0f-2e45-4752-9e9f-5b8274098514",
+   "name": "Propose slots",
+   "parameters": {
+    "jsCode": "const today = new Date().toISOString().slice(0, 10);\nconst rows = $input.all().map(function (i) { return i.json; });\nconst held = {};\nrows.forEach(function (r) { if (r.status === 'hold_confirmed' && r.held_slot) { held[r.held_slot] = true; } });\nconst out = [];\nrows.forEach(function (r) {\n  if (r.status !== 'new') { return; }\n  const first = String(r.name || 'there').split(' ')[0];\n  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(String(r.pref_date || '')) || r.pref_date < today) {\n    out.push({ json: { request_key: r.request_key, status: 'needs_info', proposed_slots: '', note: 'Need a valid future date before proposing times.' } });\n    return;\n  }\n  const times = r.pref_period === 'morning' ? ['09:00', '10:30', '11:30'] : ['13:00', '14:30', '16:00'];\n  const free = times.map(function (t) { return r.pref_date + ' ' + t; }).filter(function (s) { return !held[s]; });\n  if (free.length === 0) {\n    out.push({ json: { request_key: r.request_key, status: 'needs_info', proposed_slots: '', note: 'No free times that day. Ask for another date.' } });\n    return;\n  }\n  const body = 'Hi ' + first + ',\\n\\nThanks for asking about ' + r.property + '. These times are open: ' + free.join(', ') + '. Which works best?\\n\\n[Your name]\\n\\n[DRAFT - NOT SENT - requires human approval]';\n  out.push({ json: { request_key: r.request_key, status: 'proposed', proposed_slots: free.join(' | '), note: body } });\n});\nreturn out;",
+    "language": "javaScript",
+    "mode": "runOnceForAllItems"
+   },
+   "position": [
+    448,
+    0
+   ],
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2
+  },
+  {
+   "id": "193e2ab0-cdf1-407e-947b-160f756ef823",
+   "name": "Save proposal",
+   "parameters": {
+    "columns": {
+     "mappingMode": "defineBelow",
+     "matchingColumns": [],
+     "schema": [],
+     "value": {
+      "note": "={{ $json.note }}",
+      "proposed_slots": "={{ $json.proposed_slots }}",
+      "status": "={{ $json.status }}"
+     }
+    },
+    "dataTableId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "6lpDzAPx8d0I9RqA"
+    },
+    "filters": {
+     "conditions": [
+      {
+       "condition": "eq",
+       "keyName": "request_key",
+       "keyValue": "={{ $json.request_key }}"
+      }
+     ]
+    },
+    "matchType": "allConditions",
+    "operation": "update",
+    "resource": "row"
+   },
+   "position": [
+    672,
+    0
+   ],
+   "type": "n8n-nodes-base.dataTable",
+   "typeVersion": 1.1
+  },
+  {
+   "id": "aa7b91dc-b6d0-4c57-b609-d860885e99ad",
+   "name": "Log proposal",
+   "parameters": {
+    "columns": {
+     "mappingMode": "defineBelow",
+     "matchingColumns": [],
+     "schema": [],
+     "value": {
+      "detail": "={{ $('Propose slots').item.json.proposed_slots }}",
+      "lead_key": "={{ $('Propose slots').item.json.request_key }}",
+      "logged_at": "={{ $now.toISO() }}",
+      "outcome": "={{ 'showing_' + $('Propose slots').item.json.status }}",
+      "workflow": "PG - Showing Proposals"
+     }
+    },
+    "dataTableId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "Mokhl3J3DiBVad0D"
+    },
+    "operation": "insert",
+    "resource": "row"
+   },
+   "position": [
+    896,
+    0
+   ],
+   "type": "n8n-nodes-base.dataTable",
+   "typeVersion": 1.1
+  }
+ ],
+ "connections": {
+  "Get showings": {
+   "main": [
+    [
+     {
+      "index": 0,
+      "node": "Propose slots",
+      "type": "main"
+     }
+    ]
+   ]
+  },
+  "Manual Trigger": {
+   "main": [
+    [
+     {
+      "index": 0,
+      "node": "Get showings",
+      "type": "main"
+     }
+    ]
+   ]
+  },
+  "Propose slots": {
+   "main": [
+    [
+     {
+      "index": 0,
+      "node": "Save proposal",
+      "type": "main"
+     }
+    ]
+   ]
+  },
+  "Save proposal": {
+   "main": [
+    [
+     {
+      "index": 0,
+      "node": "Log proposal",
+      "type": "main"
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "availableInMCP": true,
+  "executionOrder": "v1"
+ }
+}

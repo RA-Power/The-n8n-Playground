@@ -1,0 +1,73 @@
+{
+ "id": "PsqUbnMVIWA6nC6D",
+ "name": "PG - Batch Approve (test)",
+ "description": "Sandbox, manual, one-off: marks all pending synthetic drafts approved_not_sent (Michael's batch approval 2026-10-30).",
+ "nodes": [
+  {
+   "id": "32e387c5-a3a5-4d04-a63a-1aed604879ad",
+   "name": "Manual Trigger",
+   "parameters": {},
+   "position": [
+    0,
+    0
+   ],
+   "type": "n8n-nodes-base.manualTrigger",
+   "typeVersion": 1
+  },
+  {
+   "id": "31a96d48-7312-48e7-88a9-e212594fe305",
+   "name": "Approve pending drafts",
+   "parameters": {
+    "columns": {
+     "mappingMode": "defineBelow",
+     "matchingColumns": [],
+     "schema": [],
+     "value": {
+      "decision_note": "Batch approved by Michael 2026-10-30 (test send to own inbox)",
+      "status": "approved_not_sent"
+     }
+    },
+    "dataTableId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "Dk3MTDtDuKcTf9JD"
+    },
+    "filters": {
+     "conditions": [
+      {
+       "condition": "eq",
+       "keyName": "status",
+       "keyValue": "pending"
+      }
+     ]
+    },
+    "matchType": "allConditions",
+    "operation": "update",
+    "resource": "row"
+   },
+   "position": [
+    224,
+    0
+   ],
+   "type": "n8n-nodes-base.dataTable",
+   "typeVersion": 1.1
+  }
+ ],
+ "connections": {
+  "Manual Trigger": {
+   "main": [
+    [
+     {
+      "index": 0,
+      "node": "Approve pending drafts",
+      "type": "main"
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "availableInMCP": true,
+  "executionOrder": "v1"
+ }
+}

@@ -1,0 +1,440 @@
+{
+ "id": "nkBx9Xp80nE85sD7",
+ "name": "PG - Reply Intake",
+ "description": "Sandbox, manual. Reads synthetic inbound messages: STOP-type words set the contact to opted_out, any other reply sets replied; pending nudge drafts for that contact are cancelled; unknown senders are logged. Never sends.",
+ "nodes": [
+  {
+   "id": "03a519cb-dfdf-4c55-8a8c-be88d673c6fc",
+   "name": "Manual Trigger",
+   "parameters": {},
+   "position": [
+    0,
+    96
+   ],
+   "type": "n8n-nodes-base.manualTrigger",
+   "typeVersion": 1
+  },
+  {
+   "id": "9ad87099-28c7-4def-bb60-8519e66af8e9",
+   "name": "Get unprocessed inbound",
+   "parameters": {
+    "dataTableId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "0AuP5h55XvnsQbfD"
+    },
+    "filters": {
+     "conditions": [
+      {
+       "condition": "eq",
+       "keyName": "processed",
+       "keyValue": "no"
+      }
+     ]
+    },
+    "matchType": "allConditions",
+    "operation": "get",
+    "resource": "row",
+    "returnAll": true
+   },
+   "position": [
+    224,
+    96
+   ],
+   "type": "n8n-nodes-base.dataTable",
+   "typeVersion": 1.1
+  },
+  {
+   "id": "c0b16657-a635-4bf8-9b9e-500c2e48a4d0",
+   "name": "Get contacts",
+   "parameters": {
+    "dataTableId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "8WAw5aHyrB4ah2il"
+    },
+    "operation": "get",
+    "resource": "row",
+    "returnAll": true
+   },
+   "position": [
+    448,
+    96
+   ],
+   "type": "n8n-nodes-base.dataTable",
+   "typeVersion": 1.1
+  },
+  {
+   "id": "ef554ed3-ac43-4071-8f33-7de853cff41a",
+   "name": "Classify",
+   "parameters": {
+    "jsCode": "const known = {};\n$input.all().forEach(function (i) { if (i.json.email) { known[String(i.json.email).toLowerCase()] = i.json.contact_key; } });\nconst stopRe = /\\b(stop|unsubscribe|opt out|opt-out|remove me|do not contact|dont contact|no more emails|leave me alone)\\b/i;\nreturn $('Get unprocessed inbound').all().map(function (i) {\n  const m = i.json;\n  const email = String(m.from_email || '').toLowerCase();\n  const contactKey = known[email] || '';\n  const isStop = stopRe.test(String(m.message || ''));\n  return { json: { inbound_id: m.id, from_email: email, contact_key: contactKey, known: contactKey !== '', new_status: isStop ? 'opted_out' : 'replied', outcome: contactKey === '' ? 'inbound_unknown_sender' : (isStop ? 'contact_opted_out' : 'contact_replied') } };\n});",
+    "language": "javaScript",
+    "mode": "runOnceForAllItems"
+   },
+   "position": [
+    672,
+    96
+   ],
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2
+  },
+  {
+   "id": "4dce11f6-1dd0-4065-b553-23b18c8c392e",
+   "name": "Known sender?",
+   "parameters": {
+    "conditions": {
+     "combinator": "and",
+     "conditions": [
+      {
+       "leftValue": "={{ $json.known }}",
+       "operator": {
+        "operation": "true",
+        "singleValue": true,
+        "type": "boolean"
+       }
+      }
+     ],
+     "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "loose"
+     }
+    }
+   },
+   "position": [
+    896,
+    96
+   ],
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.2
+  },
+  {
+   "id": "65d8ad9b-9acb-4bf3-b685-c7ed7ae017eb",
+   "name": "Set contact status",
+   "parameters": {
+    "columns": {
+     "mappingMode": "defineBelow",
+     "matchingColumns": [],
+     "schema": [],
+     "value": {
+      "status": "={{ $json.new_status }}"
+     }
+    },
+    "dataTableId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "8WAw5aHyrB4ah2il"
+    },
+    "filters": {
+     "conditions": [
+      {
+       "condition": "eq",
+       "keyName": "contact_key",
+       "keyValue": "={{ $json.contact_key }}"
+      }
+     ]
+    },
+    "matchType": "allConditions",
+    "operation": "update",
+    "resource": "row"
+   },
+   "position": [
+    1120,
+    0
+   ],
+   "type": "n8n-nodes-base.dataTable",
+   "typeVersion": 1.1
+  },
+  {
+   "id": "02d82df0-b8d7-402c-90cd-c25927d53d6a",
+   "name": "Mark inbound processed",
+   "parameters": {
+    "columns": {
+     "mappingMode": "defineBelow",
+     "matchingColumns": [],
+     "schema": [],
+     "value": {
+      "processed": "yes"
+     }
+    },
+    "dataTableId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "0AuP5h55XvnsQbfD"
+    },
+    "filters": {
+     "conditions": [
+      {
+       "condition": "eq",
+       "keyName": "id",
+       "keyValue": "={{ $('Classify').item.json.inbound_id }}"
+      }
+     ]
+    },
+    "matchType": "allConditions",
+    "operation": "update",
+    "resource": "row"
+   },
+   "position": [
+    1344,
+    0
+   ],
+   "type": "n8n-nodes-base.dataTable",
+   "typeVersion": 1.1
+  },
+  {
+   "id": "9778dd3e-883a-4af8-bfee-79a4d5ebba9c",
+   "name": "Log inbound",
+   "parameters": {
+    "columns": {
+     "mappingMode": "defineBelow",
+     "matchingColumns": [],
+     "schema": [],
+     "value": {
+      "detail": "nudge drafts for this contact cancelled",
+      "lead_key": "={{ $('Classify').item.json.contact_key }}",
+      "logged_at": "={{ $now.toISO() }}",
+      "outcome": "={{ $('Classify').item.json.outcome }}",
+      "workflow": "PG - Reply Intake"
+     }
+    },
+    "dataTableId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "Mokhl3J3DiBVad0D"
+    },
+    "operation": "insert",
+    "resource": "row"
+   },
+   "position": [
+    1568,
+    0
+   ],
+   "type": "n8n-nodes-base.dataTable",
+   "typeVersion": 1.1
+  },
+  {
+   "id": "cfc320fb-237a-4b29-95f7-86d1b29fd3c4",
+   "name": "Cancel pending nudges",
+   "parameters": {
+    "columns": {
+     "mappingMode": "defineBelow",
+     "matchingColumns": [],
+     "schema": [],
+     "value": {
+      "status": "cancelled"
+     }
+    },
+    "dataTableId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "Ssk60r4bQd30sUpD"
+    },
+    "filters": {
+     "conditions": [
+      {
+       "condition": "eq",
+       "keyName": "contact_key",
+       "keyValue": "={{ $('Classify').item.json.contact_key }}"
+      },
+      {
+       "condition": "eq",
+       "keyName": "status",
+       "keyValue": "pending"
+      }
+     ]
+    },
+    "matchType": "allConditions",
+    "operation": "update",
+    "resource": "row"
+   },
+   "position": [
+    1792,
+    0
+   ],
+   "type": "n8n-nodes-base.dataTable",
+   "typeVersion": 1.1
+  },
+  {
+   "id": "cccc640d-482c-463e-a313-6b3efbfffb64",
+   "name": "Mark unknown processed",
+   "parameters": {
+    "columns": {
+     "mappingMode": "defineBelow",
+     "matchingColumns": [],
+     "schema": [],
+     "value": {
+      "processed": "yes"
+     }
+    },
+    "dataTableId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "0AuP5h55XvnsQbfD"
+    },
+    "filters": {
+     "conditions": [
+      {
+       "condition": "eq",
+       "keyName": "id",
+       "keyValue": "={{ $json.inbound_id }}"
+      }
+     ]
+    },
+    "matchType": "allConditions",
+    "operation": "update",
+    "resource": "row"
+   },
+   "position": [
+    1120,
+    192
+   ],
+   "type": "n8n-nodes-base.dataTable",
+   "typeVersion": 1.1
+  },
+  {
+   "id": "7530a5db-d6a8-4c40-a52f-0217d34f65d5",
+   "name": "Log unknown sender",
+   "parameters": {
+    "columns": {
+     "mappingMode": "defineBelow",
+     "matchingColumns": [],
+     "schema": [],
+     "value": {
+      "detail": "sender not in contacts; flagged for human",
+      "lead_key": "={{ $('Classify').item.json.from_email }}",
+      "logged_at": "={{ $now.toISO() }}",
+      "outcome": "inbound_unknown_sender",
+      "workflow": "PG - Reply Intake"
+     }
+    },
+    "dataTableId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "Mokhl3J3DiBVad0D"
+    },
+    "operation": "insert",
+    "resource": "row"
+   },
+   "position": [
+    1344,
+    192
+   ],
+   "type": "n8n-nodes-base.dataTable",
+   "typeVersion": 1.1
+  }
+ ],
+ "connections": {
+  "Classify": {
+   "main": [
+    [
+     {
+      "index": 0,
+      "node": "Known sender?",
+      "type": "main"
+     }
+    ]
+   ]
+  },
+  "Get contacts": {
+   "main": [
+    [
+     {
+      "index": 0,
+      "node": "Classify",
+      "type": "main"
+     }
+    ]
+   ]
+  },
+  "Get unprocessed inbound": {
+   "main": [
+    [
+     {
+      "index": 0,
+      "node": "Get contacts",
+      "type": "main"
+     }
+    ]
+   ]
+  },
+  "Known sender?": {
+   "main": [
+    [
+     {
+      "index": 0,
+      "node": "Set contact status",
+      "type": "main"
+     }
+    ],
+    [
+     {
+      "index": 0,
+      "node": "Mark unknown processed",
+      "type": "main"
+     }
+    ]
+   ]
+  },
+  "Log inbound": {
+   "main": [
+    [
+     {
+      "index": 0,
+      "node": "Cancel pending nudges",
+      "type": "main"
+     }
+    ]
+   ]
+  },
+  "Manual Trigger": {
+   "main": [
+    [
+     {
+      "index": 0,
+      "node": "Get unprocessed inbound",
+      "type": "main"
+     }
+    ]
+   ]
+  },
+  "Mark inbound processed": {
+   "main": [
+    [
+     {
+      "index": 0,
+      "node": "Log inbound",
+      "type": "main"
+     }
+    ]
+   ]
+  },
+  "Mark unknown processed": {
+   "main": [
+    [
+     {
+      "index": 0,
+      "node": "Log unknown sender",
+      "type": "main"
+     }
+    ]
+   ]
+  },
+  "Set contact status": {
+   "main": [
+    [
+     {
+      "index": 0,
+      "node": "Mark inbound processed",
+      "type": "main"
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "availableInMCP": true,
+  "executionOrder": "v1"
+ }
+}

@@ -1,0 +1,72 @@
+{
+ "id": "q67baENTMvnRhzH5",
+ "name": "PG - Approve Showings (test helper)",
+ "description": "Sandbox test helper, manual. Stands in for the human approval click: marks proposed synthetic showings approved.",
+ "nodes": [
+  {
+   "id": "9d79e87c-4e66-428b-80ed-125fee85de9c",
+   "name": "Manual Trigger",
+   "parameters": {},
+   "position": [
+    0,
+    0
+   ],
+   "type": "n8n-nodes-base.manualTrigger",
+   "typeVersion": 1
+  },
+  {
+   "id": "64315554-7fc5-4f4b-8ca2-bd9c9998977b",
+   "name": "Approve proposed showings",
+   "parameters": {
+    "columns": {
+     "mappingMode": "defineBelow",
+     "matchingColumns": [],
+     "schema": [],
+     "value": {
+      "status": "approved"
+     }
+    },
+    "dataTableId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "6lpDzAPx8d0I9RqA"
+    },
+    "filters": {
+     "conditions": [
+      {
+       "condition": "eq",
+       "keyName": "status",
+       "keyValue": "proposed"
+      }
+     ]
+    },
+    "matchType": "allConditions",
+    "operation": "update",
+    "resource": "row"
+   },
+   "position": [
+    224,
+    0
+   ],
+   "type": "n8n-nodes-base.dataTable",
+   "typeVersion": 1.1
+  }
+ ],
+ "connections": {
+  "Manual Trigger": {
+   "main": [
+    [
+     {
+      "index": 0,
+      "node": "Approve proposed showings",
+      "type": "main"
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "availableInMCP": true,
+  "executionOrder": "v1"
+ }
+}

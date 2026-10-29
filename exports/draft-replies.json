@@ -1,0 +1,226 @@
+{
+ "id": "JdXdV3JvxrDunclz",
+ "name": "PG - Draft Replies",
+ "description": "Synthetic sandbox. Manual: turns new leads into pending draft replies in pg_drafts. Never sends.",
+ "nodes": [
+  {
+   "id": "dc7ade28-feb3-49ff-b2b9-0ee64ff0ad01",
+   "name": "Manual Trigger",
+   "parameters": {},
+   "position": [
+    -20,
+    0
+   ],
+   "type": "n8n-nodes-base.manualTrigger",
+   "typeVersion": 1
+  },
+  {
+   "id": "a703198e-ebf0-4afe-8482-3801fe4582d8",
+   "name": "Get new leads",
+   "parameters": {
+    "dataTableId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "iijIMiobQTzj0pwh"
+    },
+    "filters": {
+     "conditions": [
+      {
+       "condition": "eq",
+       "keyName": "status",
+       "keyValue": "new"
+      }
+     ]
+    },
+    "matchType": "allConditions",
+    "operation": "get",
+    "resource": "row",
+    "returnAll": true
+   },
+   "position": [
+    220,
+    0
+   ],
+   "type": "n8n-nodes-base.dataTable",
+   "typeVersion": 1.1
+  },
+  {
+   "id": "50d3b1dd-f9ef-423e-a869-26a389b181a0",
+   "name": "Build draft",
+   "parameters": {
+    "jsCode": "// Deterministic real estate template. No AI, no sends. Draft only.\nconst first = String($json.name || 'there').split(' ')[0];\nconst text = String($json.message || '').toLowerCase();\nlet kind = 'general';\nif (/\\b(sell|selling|list my|listing my|home value|worth)\\b/.test(text)) { kind = 'seller'; }\nelse if (/\\b(rent|renting|lease|tenant)\\b/.test(text)) { kind = 'renter'; }\nelse if (/\\b(buy|buying|purchase|bedroom|condo|house|home)\\b/.test(text)) { kind = 'buyer'; }\nconst lines = {\n  buyer: 'Thanks for reaching out about finding a home. To point you in the right direction: what area are you looking in, and roughly what timeline do you have in mind?',\n  seller: 'Thanks for reaching out about selling. To start: where is the property, and are you hoping to sell on a particular timeline?',\n  renter: 'Thanks for reaching out about a rental. What area and move-in date are you thinking about?',\n  general: 'Thanks for reaching out. Could you tell me a little more about what you are looking for, and the best way to reach you?'\n};\nconst subject = 'Re: your ' + (kind === 'general' ? 'inquiry' : kind === 'renter' ? 'rental inquiry' : kind === 'seller' ? 'question about selling' : 'home search');\nconst body = 'Hi ' + first + ',\\n\\n' + lines[kind] + '\\n\\nHappy to set up a short call if that is easier.\\n\\n[Your name]\\n\\n[DRAFT - NOT SENT - requires human approval]';\nreturn { json: { lead_key: $json.lead_key, name: $json.name, email: $json.email, draft_subject: subject, draft_body: body, status: 'pending', decided_at: '', decision_note: '' } };",
+    "language": "javaScript",
+    "mode": "runOnceForEachItem"
+   },
+   "position": [
+    460,
+    0
+   ],
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2
+  },
+  {
+   "id": "da6b6c84-e5c4-4336-80d7-d657a87f0d5e",
+   "name": "Insert draft",
+   "parameters": {
+    "columns": {
+     "mappingMode": "defineBelow",
+     "matchingColumns": [],
+     "schema": [],
+     "value": {
+      "decided_at": "",
+      "decision_note": "",
+      "draft_body": "={{ $('Build draft').item.json.draft_body }}",
+      "draft_subject": "={{ $('Build draft').item.json.draft_subject }}",
+      "email": "={{ $('Build draft').item.json.email }}",
+      "lead_key": "={{ $('Build draft').item.json.lead_key }}",
+      "name": "={{ $('Build draft').item.json.name }}",
+      "status": "pending"
+     }
+    },
+    "dataTableId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "Dk3MTDtDuKcTf9JD"
+    },
+    "operation": "insert",
+    "resource": "row"
+   },
+   "position": [
+    700,
+    0
+   ],
+   "type": "n8n-nodes-base.dataTable",
+   "typeVersion": 1.1
+  },
+  {
+   "id": "2ac62bb4-297e-4c52-a308-8beaad616a9f",
+   "name": "Mark lead drafted",
+   "parameters": {
+    "columns": {
+     "mappingMode": "defineBelow",
+     "matchingColumns": [],
+     "schema": [],
+     "value": {
+      "status": "drafted"
+     }
+    },
+    "dataTableId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "iijIMiobQTzj0pwh"
+    },
+    "filters": {
+     "conditions": [
+      {
+       "condition": "eq",
+       "keyName": "lead_key",
+       "keyValue": "={{ $('Build draft').item.json.lead_key }}"
+      }
+     ]
+    },
+    "matchType": "allConditions",
+    "operation": "update",
+    "resource": "row"
+   },
+   "position": [
+    940,
+    0
+   ],
+   "type": "n8n-nodes-base.dataTable",
+   "typeVersion": 1.1
+  },
+  {
+   "id": "31b3de58-e672-4edb-90cc-33f762d09e3d",
+   "name": "Log draft",
+   "parameters": {
+    "columns": {
+     "mappingMode": "defineBelow",
+     "matchingColumns": [],
+     "schema": [],
+     "value": {
+      "detail": "status=pending, not sent",
+      "lead_key": "={{ $('Build draft').item.json.lead_key }}",
+      "logged_at": "={{ $now.toISO() }}",
+      "outcome": "draft_created",
+      "workflow": "PG - Draft Replies"
+     }
+    },
+    "dataTableId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "Mokhl3J3DiBVad0D"
+    },
+    "operation": "insert",
+    "resource": "row"
+   },
+   "position": [
+    1180,
+    0
+   ],
+   "type": "n8n-nodes-base.dataTable",
+   "typeVersion": 1.1
+  }
+ ],
+ "connections": {
+  "Build draft": {
+   "main": [
+    [
+     {
+      "index": 0,
+      "node": "Insert draft",
+      "type": "main"
+     }
+    ]
+   ]
+  },
+  "Get new leads": {
+   "main": [
+    [
+     {
+      "index": 0,
+      "node": "Build draft",
+      "type": "main"
+     }
+    ]
+   ]
+  },
+  "Insert draft": {
+   "main": [
+    [
+     {
+      "index": 0,
+      "node": "Mark lead drafted",
+      "type": "main"
+     }
+    ]
+   ]
+  },
+  "Manual Trigger": {
+   "main": [
+    [
+     {
+      "index": 0,
+      "node": "Get new leads",
+      "type": "main"
+     }
+    ]
+   ]
+  },
+  "Mark lead drafted": {
+   "main": [
+    [
+     {
+      "index": 0,
+      "node": "Log draft",
+      "type": "main"
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "availableInMCP": true,
+  "executionOrder": "v1"
+ }
+}

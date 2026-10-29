@@ -1,0 +1,279 @@
+{
+ "id": "qdryvHLb7SgW01Bt",
+ "name": "PG - Test Sender 2",
+ "description": "Synthetic sandbox. Manual: real HTTP checks of the intake and decision webhooks (key, no key, wrong key, approve path). No emails.",
+ "nodes": [
+  {
+   "id": "0c622fdf-a45a-4cae-ad0e-714c6e0df995",
+   "name": "Manual Trigger",
+   "parameters": {},
+   "position": [
+    -20,
+    0
+   ],
+   "type": "n8n-nodes-base.manualTrigger",
+   "typeVersion": 1
+  },
+  {
+   "id": "e89b9376-0bb6-4f2c-8ed8-3bb65b797908",
+   "name": "Synthetic cases",
+   "parameters": {
+    "jsCode": "// Synthetic only. Fixed lead so a second run can approve the draft made between runs.\nconst base = 'https://rapower.app.n8n.cloud/webhook/';\nconst lead = { name: 'Synthetic Http Buyer', email: 'synthetic.http.d8@example.com', phone: '555-0110', source: 'pg-test-http', message: 'Synthetic http inquiry: two bedroom condo. Test data only.' };\nconst leadKey = lead.email + '|' + lead.message.toLowerCase().slice(0, 80);\nconst cases = [\n  { case: 'A1', mode: 'key', url: base + 'pg-inquiry-intake', payload: lead, note: 'valid lead: run1 200 received, run2 200 duplicate_ignored' },\n  { case: 'A2', mode: 'key', url: base + 'pg-draft-decision', payload: { lead_key: leadKey, decision: 'maybe', note: 'bad' }, note: 'invalid decision: expect 400' },\n  { case: 'A3', mode: 'key', url: base + 'pg-draft-decision', payload: { lead_key: 'synthetic.nobody@example.com|none', decision: 'approve', note: 'unknown' }, note: 'unknown lead: expect 404' },\n  { case: 'A4', mode: 'key', url: base + 'pg-draft-decision', payload: { lead_key: leadKey, decision: 'approve', note: 'Synthetic http approve' }, note: 'run1 404 (no draft yet), run2 200 approved_not_sent' },\n  { case: 'B1', mode: 'nokey', url: base + 'pg-inquiry-intake', payload: lead, note: 'no key intake: expect 403' },\n  { case: 'B2', mode: 'nokey', url: base + 'pg-draft-decision', payload: { lead_key: leadKey, decision: 'approve', note: 'x' }, note: 'no key decision: expect 403' },\n  { case: 'C1', mode: 'wrong', url: base + 'pg-inquiry-intake', payload: lead, note: 'wrong key intake: expect 403' },\n  { case: 'C2', mode: 'wrong', url: base + 'pg-draft-decision', payload: { lead_key: leadKey, decision: 'approve', note: 'x' }, note: 'wrong key decision: expect 403' }\n];\nreturn cases.map(function (c) { return { json: c }; });",
+    "language": "javaScript",
+    "mode": "runOnceForAllItems"
+   },
+   "position": [
+    200,
+    0
+   ],
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2
+  },
+  {
+   "id": "a5771db3-32c8-4e87-8334-3b61e37ee27c",
+   "name": "Pick key cases",
+   "parameters": {
+    "jsCode": "return $input.all().filter(function (i) { return i.json.mode === 'key'; });",
+    "language": "javaScript",
+    "mode": "runOnceForAllItems"
+   },
+   "position": [
+    420,
+    0
+   ],
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2
+  },
+  {
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "079p9QBOgk299kHt",
+     "name": "PG Webhook Secret"
+    }
+   },
+   "id": "9229b59a-0871-4051-a8be-9fc8775e929d",
+   "name": "Send with key",
+   "parameters": {
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth",
+    "jsonBody": "={{ JSON.stringify($json.payload) }}",
+    "method": "POST",
+    "options": {
+     "response": {
+      "response": {
+       "fullResponse": true,
+       "neverError": true
+      }
+     }
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "url": "={{ $json.url }}"
+   },
+   "position": [
+    640,
+    0
+   ],
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2
+  },
+  {
+   "id": "33d2123c-1246-4a50-8bda-8def77e1f944",
+   "name": "Pick no-key cases",
+   "parameters": {
+    "jsCode": "return $('Synthetic cases').all().filter(function (i) { return i.json.mode === 'nokey'; });",
+    "language": "javaScript",
+    "mode": "runOnceForAllItems"
+   },
+   "position": [
+    860,
+    0
+   ],
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2
+  },
+  {
+   "id": "e3a9a1fa-2925-4e78-8c38-a24b56075537",
+   "name": "Send without key",
+   "parameters": {
+    "jsonBody": "={{ JSON.stringify($json.payload) }}",
+    "method": "POST",
+    "options": {
+     "response": {
+      "response": {
+       "fullResponse": true,
+       "neverError": true
+      }
+     }
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "url": "={{ $json.url }}"
+   },
+   "position": [
+    1080,
+    0
+   ],
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2
+  },
+  {
+   "id": "eded3046-52e0-4454-9e60-be3d2289dd50",
+   "name": "Pick wrong-key cases",
+   "parameters": {
+    "jsCode": "return $('Synthetic cases').all().filter(function (i) { return i.json.mode === 'wrong'; });",
+    "language": "javaScript",
+    "mode": "runOnceForAllItems"
+   },
+   "position": [
+    1300,
+    0
+   ],
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2
+  },
+  {
+   "id": "a6ed3f8d-8a5f-4420-a295-d8721905cb8f",
+   "name": "Send wrong key",
+   "parameters": {
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "X-PG-Key",
+       "value": "wrong-key-synthetic-test"
+      }
+     ]
+    },
+    "jsonBody": "={{ JSON.stringify($json.payload) }}",
+    "method": "POST",
+    "options": {
+     "response": {
+      "response": {
+       "fullResponse": true,
+       "neverError": true
+      }
+     }
+    },
+    "sendBody": true,
+    "sendHeaders": true,
+    "specifyBody": "json",
+    "url": "={{ $json.url }}"
+   },
+   "position": [
+    1520,
+    0
+   ],
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2
+  },
+  {
+   "id": "4e1e2782-b6ce-4cb6-9162-1d1fa782d657",
+   "name": "Check results",
+   "parameters": {
+    "jsCode": "const all = $('Synthetic cases').all().map(function (i) { return i.json; });\nconst sets = { key: $('Send with key').all().map(function (i) { return i.json; }), nokey: $('Send without key').all().map(function (i) { return i.json; }), wrong: $('Send wrong key').all().map(function (i) { return i.json; }) };\nconst used = { key: 0, nokey: 0, wrong: 0 };\nreturn all.map(function (c) {\n  const res = sets[c.mode][used[c.mode]++];\n  let body = res ? res.body : undefined;\n  if (typeof body === 'string') { try { body = JSON.parse(body); } catch (e) {} }\n  const status = body && body.status ? body.status : '';\n  return { json: { case: c.case, note: c.note, got_code: res ? res.statusCode : null, got_status: status } };\n});",
+    "language": "javaScript",
+    "mode": "runOnceForAllItems"
+   },
+   "position": [
+    1740,
+    0
+   ],
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2
+  }
+ ],
+ "connections": {
+  "Manual Trigger": {
+   "main": [
+    [
+     {
+      "index": 0,
+      "node": "Synthetic cases",
+      "type": "main"
+     }
+    ]
+   ]
+  },
+  "Pick key cases": {
+   "main": [
+    [
+     {
+      "index": 0,
+      "node": "Send with key",
+      "type": "main"
+     }
+    ]
+   ]
+  },
+  "Pick no-key cases": {
+   "main": [
+    [
+     {
+      "index": 0,
+      "node": "Send without key",
+      "type": "main"
+     }
+    ]
+   ]
+  },
+  "Pick wrong-key cases": {
+   "main": [
+    [
+     {
+      "index": 0,
+      "node": "Send wrong key",
+      "type": "main"
+     }
+    ]
+   ]
+  },
+  "Send with key": {
+   "main": [
+    [
+     {
+      "index": 0,
+      "node": "Pick no-key cases",
+      "type": "main"
+     }
+    ]
+   ]
+  },
+  "Send without key": {
+   "main": [
+    [
+     {
+      "index": 0,
+      "node": "Pick wrong-key cases",
+      "type": "main"
+     }
+    ]
+   ]
+  },
+  "Send wrong key": {
+   "main": [
+    [
+     {
+      "index": 0,
+      "node": "Check results",
+      "type": "main"
+     }
+    ]
+   ]
+  },
+  "Synthetic cases": {
+   "main": [
+    [
+     {
+      "index": 0,
+      "node": "Pick key cases",
+      "type": "main"
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "availableInMCP": true,
+  "executionOrder": "v1"
+ }
+}

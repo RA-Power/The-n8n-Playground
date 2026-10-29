@@ -1,0 +1,66 @@
+{
+ "id": "nr2oXCoUpy64BHoX",
+ "name": "PG - Error Logger",
+ "description": "Synthetic sandbox. Logs workflow errors to pg_action_log. No sends.",
+ "nodes": [
+  {
+   "id": "8da5b006-cf1f-42d7-9d73-e12beb5d5785",
+   "name": "Error Trigger",
+   "parameters": {},
+   "position": [
+    -20,
+    0
+   ],
+   "type": "n8n-nodes-base.errorTrigger",
+   "typeVersion": 1
+  },
+  {
+   "id": "e5fb8031-de9c-4c78-ba1f-78ca519cc06b",
+   "name": "Log error",
+   "parameters": {
+    "columns": {
+     "mappingMode": "defineBelow",
+     "matchingColumns": [],
+     "schema": [],
+     "value": {
+      "detail": "={{ ($json.execution.lastNodeExecuted || 'unknown node') + ': ' + $json.execution.error.message + ' | ' + $json.execution.url }}",
+      "lead_key": "",
+      "logged_at": "={{ $now.toISO() }}",
+      "outcome": "workflow_error",
+      "workflow": "={{ $json.workflow.name }}"
+     }
+    },
+    "dataTableId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "Mokhl3J3DiBVad0D"
+    },
+    "operation": "insert",
+    "resource": "row"
+   },
+   "position": [
+    240,
+    0
+   ],
+   "type": "n8n-nodes-base.dataTable",
+   "typeVersion": 1.1
+  }
+ ],
+ "connections": {
+  "Error Trigger": {
+   "main": [
+    [
+     {
+      "index": 0,
+      "node": "Log error",
+      "type": "main"
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "availableInMCP": true,
+  "executionOrder": "v1"
+ }
+}

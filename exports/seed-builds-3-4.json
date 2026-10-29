@@ -1,0 +1,166 @@
+{
+ "id": "JFo9ZYbuhiylfvzW",
+ "name": "PG - Seed Builds 3-4 (test)",
+ "description": "Sandbox, manual. Inserts 6 synthetic contacts and 3 synthetic showing requests. example.com only.",
+ "nodes": [
+  {
+   "id": "421db01e-087b-4860-b33e-5ca5aacf23c8",
+   "name": "Manual Trigger",
+   "parameters": {},
+   "position": [
+    0,
+    0
+   ],
+   "type": "n8n-nodes-base.manualTrigger",
+   "typeVersion": 1
+  },
+  {
+   "id": "951302c0-95a3-4022-b706-89e88df2b20e",
+   "name": "Synthetic contacts",
+   "parameters": {
+    "jsCode": "return [\n  { json: { contact_key: 'syn.active1@example.com', name: 'Synthetic Active One', email: 'syn.active1@example.com', status: 'active', last_contacted: '2026-04-01', touches_12m: '1' } },\n  { json: { contact_key: 'syn.recent@example.com', name: 'Synthetic Recent', email: 'syn.recent@example.com', status: 'active', last_contacted: '2026-10-10', touches_12m: '1' } },\n  { json: { contact_key: 'syn.optout@example.com', name: 'Synthetic Optout', email: 'syn.optout@example.com', status: 'opted_out', last_contacted: '2026-03-01', touches_12m: '1' } },\n  { json: { contact_key: 'syn.replied@example.com', name: 'Synthetic Replied', email: 'syn.replied@example.com', status: 'replied', last_contacted: '2026-03-01', touches_12m: '1' } },\n  { json: { contact_key: 'syn.capped@example.com', name: 'Synthetic Capped', email: 'syn.capped@example.com', status: 'active', last_contacted: '2026-03-01', touches_12m: '3' } },\n  { json: { contact_key: 'syn.active2@example.com', name: 'Synthetic Active Two', email: 'syn.active2@example.com', status: 'active', last_contacted: '', touches_12m: '0' } }\n];",
+    "language": "javaScript",
+    "mode": "runOnceForAllItems"
+   },
+   "position": [
+    224,
+    0
+   ],
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2
+  },
+  {
+   "id": "2232a96a-ab9c-426b-a096-219bbeb9fabc",
+   "name": "Insert contacts",
+   "parameters": {
+    "columns": {
+     "mappingMode": "defineBelow",
+     "matchingColumns": [],
+     "schema": [],
+     "value": {
+      "contact_key": "={{ $json.contact_key }}",
+      "email": "={{ $json.email }}",
+      "last_contacted": "={{ $json.last_contacted }}",
+      "name": "={{ $json.name }}",
+      "status": "={{ $json.status }}",
+      "touches_12m": "={{ $json.touches_12m }}"
+     }
+    },
+    "dataTableId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "8WAw5aHyrB4ah2il"
+    },
+    "operation": "insert",
+    "resource": "row"
+   },
+   "position": [
+    448,
+    0
+   ],
+   "type": "n8n-nodes-base.dataTable",
+   "typeVersion": 1.1
+  },
+  {
+   "id": "b202347a-7176-48f5-af2c-056d511c5a52",
+   "name": "Synthetic showing requests",
+   "parameters": {
+    "jsCode": "return [\n  { json: { request_key: 'syn.show1@example.com|2026-11-07', name: 'Synthetic Showing One', email: 'syn.show1@example.com', property: 'Synthetic 3 bed house, 12 Test Lane', pref_date: '2026-11-07', pref_period: 'afternoon' } },\n  { json: { request_key: 'syn.show2@example.com|2026-11-07', name: 'Synthetic Showing Two', email: 'syn.show2@example.com', property: 'Synthetic 3 bed house, 12 Test Lane', pref_date: '2026-11-07', pref_period: 'afternoon' } },\n  { json: { request_key: 'syn.show3@example.com|whenever', name: 'Synthetic Showing Three', email: 'syn.show3@example.com', property: 'Synthetic condo, 4 Sample Ave', pref_date: 'whenever', pref_period: '' } }\n];",
+    "language": "javaScript",
+    "mode": "runOnceForAllItems"
+   },
+   "position": [
+    672,
+    0
+   ],
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2
+  },
+  {
+   "id": "8780db1c-1572-45d4-93e9-1148b46146e5",
+   "name": "Insert showing requests",
+   "parameters": {
+    "columns": {
+     "mappingMode": "defineBelow",
+     "matchingColumns": [],
+     "schema": [],
+     "value": {
+      "email": "={{ $json.email }}",
+      "held_slot": "",
+      "name": "={{ $json.name }}",
+      "note": "",
+      "pref_date": "={{ $json.pref_date }}",
+      "pref_period": "={{ $json.pref_period }}",
+      "property": "={{ $json.property }}",
+      "proposed_slots": "",
+      "request_key": "={{ $json.request_key }}",
+      "status": "new"
+     }
+    },
+    "dataTableId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "6lpDzAPx8d0I9RqA"
+    },
+    "operation": "insert",
+    "resource": "row"
+   },
+   "position": [
+    896,
+    0
+   ],
+   "type": "n8n-nodes-base.dataTable",
+   "typeVersion": 1.1
+  }
+ ],
+ "connections": {
+  "Insert contacts": {
+   "main": [
+    [
+     {
+      "index": 0,
+      "node": "Synthetic showing requests",
+      "type": "main"
+     }
+    ]
+   ]
+  },
+  "Manual Trigger": {
+   "main": [
+    [
+     {
+      "index": 0,
+      "node": "Synthetic contacts",
+      "type": "main"
+     }
+    ]
+   ]
+  },
+  "Synthetic contacts": {
+   "main": [
+    [
+     {
+      "index": 0,
+      "node": "Insert contacts",
+      "type": "main"
+     }
+    ]
+   ]
+  },
+  "Synthetic showing requests": {
+   "main": [
+    [
+     {
+      "index": 0,
+      "node": "Insert showing requests",
+      "type": "main"
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "availableInMCP": true,
+  "executionOrder": "v1"
+ }
+}

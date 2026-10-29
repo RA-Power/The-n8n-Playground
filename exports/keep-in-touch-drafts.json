@@ -1,0 +1,278 @@
+{
+ "id": "XZqZCholnAJh48TA",
+ "name": "PG - Keep in Touch Drafts",
+ "description": "Sandbox, manual, draft-only. Builds check-in drafts for active past contacts with guards: opted-out/replied skip, 90-day gap, 3-touch cap, no duplicate pending draft, valid email. Never sends. No referral/review ask.",
+ "nodes": [
+  {
+   "id": "1f49ff69-fb05-4d1e-b68b-a61475fd4a07",
+   "name": "Manual Trigger",
+   "parameters": {},
+   "position": [
+    0,
+    96
+   ],
+   "type": "n8n-nodes-base.manualTrigger",
+   "typeVersion": 1
+  },
+  {
+   "alwaysOutputData": true,
+   "id": "8d1b476a-71b7-4dde-84f1-ddf5b7bb4cbf",
+   "name": "Get nudges",
+   "parameters": {
+    "dataTableId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "Ssk60r4bQd30sUpD"
+    },
+    "operation": "get",
+    "resource": "row",
+    "returnAll": true
+   },
+   "position": [
+    224,
+    96
+   ],
+   "type": "n8n-nodes-base.dataTable",
+   "typeVersion": 1.1
+  },
+  {
+   "id": "fe2e65b4-16f9-4e0b-aabc-698587669a6d",
+   "name": "Get contacts",
+   "parameters": {
+    "dataTableId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "8WAw5aHyrB4ah2il"
+    },
+    "operation": "get",
+    "resource": "row",
+    "returnAll": true
+   },
+   "position": [
+    448,
+    96
+   ],
+   "type": "n8n-nodes-base.dataTable",
+   "typeVersion": 1.1
+  },
+  {
+   "id": "a9c1199b-a01d-4558-b75e-4e87616527fd",
+   "name": "Decide",
+   "parameters": {
+    "jsCode": "const today = new Date().toISOString().slice(0, 10);\nconst MIN_DAYS = 90;\nconst MAX_TOUCHES = 3;\nconst pending = {};\n$('Get nudges').all().forEach(function (i) { if (i.json && i.json.contact_key && i.json.status === 'pending') { pending[i.json.contact_key] = true; } });\nfunction daysSince(d) { return Math.floor((new Date(today) - new Date(d)) / 86400000); }\nconst out = [];\n$input.all().forEach(function (i) {\n  const c = i.json;\n  let action = 'draft';\n  let reason = 'eligible';\n  if (!c.contact_key) { return; }\n  if (c.status !== 'active') { action = 'skip'; reason = 'status_' + c.status; }\n  else if (!/^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/.test(String(c.email || ''))) { action = 'skip'; reason = 'bad_email'; }\n  else if (Number(c.touches_12m || 0) >= MAX_TOUCHES) { action = 'skip'; reason = 'touch_cap_reached'; }\n  else if (c.last_contacted && daysSince(c.last_contacted) < MIN_DAYS) { action = 'skip'; reason = 'contacted_within_90_days'; }\n  else if (pending[c.contact_key]) { action = 'skip'; reason = 'draft_already_pending'; }\n  const first = String(c.name || 'there').split(' ')[0];\n  const subject = 'Checking in';\n  const body = 'Hi ' + first + ',\\n\\nIt has been a little while, so I wanted to check in and see how things are going. If anything about your plans has changed, I am happy to chat.\\n\\nIf you would rather not get these notes, just reply STOP and I will take you off the list.\\n\\n[Your name]\\n\\n[DRAFT - NOT SENT - requires human approval]';\n  out.push({ json: { action: action, reason: reason, contact_key: c.contact_key, name: c.name, email: c.email, draft_subject: subject, draft_body: body, created_at: new Date().toISOString() } });\n});\nreturn out;",
+    "language": "javaScript",
+    "mode": "runOnceForAllItems"
+   },
+   "position": [
+    672,
+    96
+   ],
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2
+  },
+  {
+   "id": "9e2691a7-0f5d-4d5b-99b4-4a050be60869",
+   "name": "Draft?",
+   "parameters": {
+    "conditions": {
+     "combinator": "and",
+     "conditions": [
+      {
+       "leftValue": "={{ $json.action }}",
+       "operator": {
+        "operation": "equals",
+        "type": "string"
+       },
+       "rightValue": "draft"
+      }
+     ],
+     "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "loose"
+     }
+    }
+   },
+   "position": [
+    896,
+    96
+   ],
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.2
+  },
+  {
+   "id": "90a43c50-5d32-4818-bbf0-34bdbd25acdd",
+   "name": "Insert nudge draft",
+   "parameters": {
+    "columns": {
+     "mappingMode": "defineBelow",
+     "matchingColumns": [],
+     "schema": [],
+     "value": {
+      "contact_key": "={{ $json.contact_key }}",
+      "created_at": "={{ $json.created_at }}",
+      "draft_body": "={{ $json.draft_body }}",
+      "draft_subject": "={{ $json.draft_subject }}",
+      "email": "={{ $json.email }}",
+      "name": "={{ $json.name }}",
+      "status": "pending"
+     }
+    },
+    "dataTableId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "Ssk60r4bQd30sUpD"
+    },
+    "operation": "insert",
+    "resource": "row"
+   },
+   "position": [
+    1120,
+    0
+   ],
+   "type": "n8n-nodes-base.dataTable",
+   "typeVersion": 1.1
+  },
+  {
+   "id": "797a51ef-94e7-453d-8aad-35d0eefe9632",
+   "name": "Log draft",
+   "parameters": {
+    "columns": {
+     "mappingMode": "defineBelow",
+     "matchingColumns": [],
+     "schema": [],
+     "value": {
+      "detail": "status=pending, not sent",
+      "lead_key": "={{ $('Decide').item.json.contact_key }}",
+      "logged_at": "={{ $now.toISO() }}",
+      "outcome": "nudge_draft_created",
+      "workflow": "PG - Keep in Touch Drafts"
+     }
+    },
+    "dataTableId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "Mokhl3J3DiBVad0D"
+    },
+    "operation": "insert",
+    "resource": "row"
+   },
+   "position": [
+    1344,
+    0
+   ],
+   "type": "n8n-nodes-base.dataTable",
+   "typeVersion": 1.1
+  },
+  {
+   "id": "e5df661c-4929-4c07-976b-5f4890f9f924",
+   "name": "Log skip",
+   "parameters": {
+    "columns": {
+     "mappingMode": "defineBelow",
+     "matchingColumns": [],
+     "schema": [],
+     "value": {
+      "detail": "={{ $json.reason }}",
+      "lead_key": "={{ $json.contact_key }}",
+      "logged_at": "={{ $now.toISO() }}",
+      "outcome": "nudge_skipped",
+      "workflow": "PG - Keep in Touch Drafts"
+     }
+    },
+    "dataTableId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "Mokhl3J3DiBVad0D"
+    },
+    "operation": "insert",
+    "resource": "row"
+   },
+   "position": [
+    1120,
+    192
+   ],
+   "type": "n8n-nodes-base.dataTable",
+   "typeVersion": 1.1
+  }
+ ],
+ "connections": {
+  "Decide": {
+   "main": [
+    [
+     {
+      "index": 0,
+      "node": "Draft?",
+      "type": "main"
+     }
+    ]
+   ]
+  },
+  "Draft?": {
+   "main": [
+    [
+     {
+      "index": 0,
+      "node": "Insert nudge draft",
+      "type": "main"
+     }
+    ],
+    [
+     {
+      "index": 0,
+      "node": "Log skip",
+      "type": "main"
+     }
+    ]
+   ]
+  },
+  "Get contacts": {
+   "main": [
+    [
+     {
+      "index": 0,
+      "node": "Decide",
+      "type": "main"
+     }
+    ]
+   ]
+  },
+  "Get nudges": {
+   "main": [
+    [
+     {
+      "index": 0,
+      "node": "Get contacts",
+      "type": "main"
+     }
+    ]
+   ]
+  },
+  "Insert nudge draft": {
+   "main": [
+    [
+     {
+      "index": 0,
+      "node": "Log draft",
+      "type": "main"
+     }
+    ]
+   ]
+  },
+  "Manual Trigger": {
+   "main": [
+    [
+     {
+      "index": 0,
+      "node": "Get nudges",
+      "type": "main"
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "availableInMCP": true,
+  "executionOrder": "v1"
+ }
+}

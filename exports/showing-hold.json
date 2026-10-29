@@ -1,0 +1,172 @@
+{
+ "id": "77vuye5ePY2cP20N",
+ "name": "PG - Showing Hold",
+ "description": "Sandbox, manual. For human-approved showing requests, holds the first proposed slot not already held (double-booking guard). Records the hold in a table only; no calendar write, no sends.",
+ "nodes": [
+  {
+   "id": "851d15d6-2585-4ad2-98ef-ce2724fc976a",
+   "name": "Manual Trigger",
+   "parameters": {},
+   "position": [
+    0,
+    0
+   ],
+   "type": "n8n-nodes-base.manualTrigger",
+   "typeVersion": 1
+  },
+  {
+   "id": "09021aab-3398-47e5-8ed9-e5357a9cb399",
+   "name": "Get showings",
+   "parameters": {
+    "dataTableId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "6lpDzAPx8d0I9RqA"
+    },
+    "operation": "get",
+    "resource": "row",
+    "returnAll": true
+   },
+   "position": [
+    224,
+    0
+   ],
+   "type": "n8n-nodes-base.dataTable",
+   "typeVersion": 1.1
+  },
+  {
+   "id": "d30c5145-7d42-4ee7-8297-f020e14f93a2",
+   "name": "Pick slot to hold",
+   "parameters": {
+    "jsCode": "const rows = $input.all().map(function (i) { return i.json; });\nconst held = {};\nrows.forEach(function (r) { if (r.status === 'hold_confirmed' && r.held_slot) { held[r.held_slot] = true; } });\nconst out = [];\nrows.forEach(function (r) {\n  if (r.status !== 'approved') { return; }\n  const options = String(r.proposed_slots || '').split(' | ').filter(function (s) { return s; });\n  const pick = options.find(function (s) { return !held[s]; });\n  if (pick) {\n    held[pick] = true;\n    out.push({ json: { request_key: r.request_key, status: 'hold_confirmed', held_slot: pick } });\n  } else {\n    out.push({ json: { request_key: r.request_key, status: 'needs_new_times', held_slot: '' } });\n  }\n});\nreturn out;",
+    "language": "javaScript",
+    "mode": "runOnceForAllItems"
+   },
+   "position": [
+    448,
+    0
+   ],
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2
+  },
+  {
+   "id": "dfbd5b03-cc1e-4a64-bb60-acfc45113433",
+   "name": "Save hold",
+   "parameters": {
+    "columns": {
+     "mappingMode": "defineBelow",
+     "matchingColumns": [],
+     "schema": [],
+     "value": {
+      "held_slot": "={{ $json.held_slot }}",
+      "status": "={{ $json.status }}"
+     }
+    },
+    "dataTableId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "6lpDzAPx8d0I9RqA"
+    },
+    "filters": {
+     "conditions": [
+      {
+       "condition": "eq",
+       "keyName": "request_key",
+       "keyValue": "={{ $json.request_key }}"
+      }
+     ]
+    },
+    "matchType": "allConditions",
+    "operation": "update",
+    "resource": "row"
+   },
+   "position": [
+    672,
+    0
+   ],
+   "type": "n8n-nodes-base.dataTable",
+   "typeVersion": 1.1
+  },
+  {
+   "id": "d0b36925-318b-4668-8374-02bb4fdc2dd3",
+   "name": "Log hold",
+   "parameters": {
+    "columns": {
+     "mappingMode": "defineBelow",
+     "matchingColumns": [],
+     "schema": [],
+     "value": {
+      "detail": "={{ $('Pick slot to hold').item.json.held_slot }}",
+      "lead_key": "={{ $('Pick slot to hold').item.json.request_key }}",
+      "logged_at": "={{ $now.toISO() }}",
+      "outcome": "={{ 'showing_' + $('Pick slot to hold').item.json.status }}",
+      "workflow": "PG - Showing Hold"
+     }
+    },
+    "dataTableId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "Mokhl3J3DiBVad0D"
+    },
+    "operation": "insert",
+    "resource": "row"
+   },
+   "position": [
+    896,
+    0
+   ],
+   "type": "n8n-nodes-base.dataTable",
+   "typeVersion": 1.1
+  }
+ ],
+ "connections": {
+  "Get showings": {
+   "main": [
+    [
+     {
+      "index": 0,
+      "node": "Pick slot to hold",
+      "type": "main"
+     }
+    ]
+   ]
+  },
+  "Manual Trigger": {
+   "main": [
+    [
+     {
+      "index": 0,
+      "node": "Get showings",
+      "type": "main"
+     }
+    ]
+   ]
+  },
+  "Pick slot to hold": {
+   "main": [
+    [
+     {
+      "index": 0,
+      "node": "Save hold",
+      "type": "main"
+     }
+    ]
+   ]
+  },
+  "Save hold": {
+   "main": [
+    [
+     {
+      "index": 0,
+      "node": "Log hold",
+      "type": "main"
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "availableInMCP": true,
+  "executionOrder": "v1"
+ }
+}

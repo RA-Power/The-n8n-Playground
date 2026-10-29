@@ -1,0 +1,219 @@
+{
+ "id": "VqBzuc8ISJpCawDl",
+ "name": "PG - Send Approved (test)",
+ "description": "Sandbox. Manual. Sends approved synthetic drafts ONLY to Michael's own inbox (address forced in code, max 5 per run), marks them sent_test, logs. Never contacts the lead address.",
+ "nodes": [
+  {
+   "id": "ed39a7c9-b1be-4754-9cde-a8d75db8e29c",
+   "name": "Manual Trigger",
+   "parameters": {},
+   "position": [
+    0,
+    0
+   ],
+   "type": "n8n-nodes-base.manualTrigger",
+   "typeVersion": 1
+  },
+  {
+   "id": "eab81611-096f-4d92-94c6-82a5cdd40fc9",
+   "name": "Get approved drafts",
+   "parameters": {
+    "dataTableId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "Dk3MTDtDuKcTf9JD"
+    },
+    "filters": {
+     "conditions": [
+      {
+       "condition": "eq",
+       "keyName": "status",
+       "keyValue": "approved_not_sent"
+      }
+     ]
+    },
+    "matchType": "allConditions",
+    "operation": "get",
+    "resource": "row",
+    "returnAll": true
+   },
+   "position": [
+    224,
+    0
+   ],
+   "type": "n8n-nodes-base.dataTable",
+   "typeVersion": 1.1
+  },
+  {
+   "id": "28f9089f-8665-4c48-a24a-c7ab330df672",
+   "name": "Cap at 5 and force test address",
+   "parameters": {
+    "jsCode": "const MAX = 5;\nconst TEST_TO = 'michael.henry.miller@remote-advisor.com';\nconst rows = $input.all().sort((a, b) => Number(b.json.id) - Number(a.json.id)).slice(0, MAX);\nreturn rows.map(i => ({ json: {\n  id: i.json.id,\n  lead_key: i.json.lead_key,\n  original_to: i.json.email,\n  to: TEST_TO,\n  subject: '[PG TEST - synthetic] ' + i.json.draft_subject,\n  body: 'SANDBOX TEST. This would have gone to: ' + i.json.email + '\\n----------\\n\\n' + String(i.json.draft_body).replace('[DRAFT - NOT SENT - requires human approval]', '')\n} }));",
+    "language": "javaScript",
+    "mode": "runOnceForAllItems"
+   },
+   "position": [
+    448,
+    0
+   ],
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2
+  },
+  {
+   "credentials": {
+    "gmailOAuth2": {
+     "id": "8vSqpFnsZunyhwks",
+     "name": "Gmail account 2"
+    }
+   },
+   "id": "1a657967-1ea4-4769-b531-52594923e08e",
+   "name": "Send test email to Michael",
+   "parameters": {
+    "emailType": "text",
+    "message": "={{ $json.body }}",
+    "operation": "send",
+    "options": {
+     "appendAttribution": false
+    },
+    "resource": "message",
+    "sendTo": "={{ $json.to }}",
+    "subject": "={{ $json.subject }}"
+   },
+   "position": [
+    672,
+    0
+   ],
+   "type": "n8n-nodes-base.gmail",
+   "typeVersion": 2.2
+  },
+  {
+   "id": "5e1a44fa-1914-4a83-87c5-6593682618b5",
+   "name": "Mark draft sent_test",
+   "parameters": {
+    "columns": {
+     "mappingMode": "defineBelow",
+     "matchingColumns": [],
+     "schema": [],
+     "value": {
+      "status": "sent_test"
+     }
+    },
+    "dataTableId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "Dk3MTDtDuKcTf9JD"
+    },
+    "filters": {
+     "conditions": [
+      {
+       "condition": "eq",
+       "keyName": "id",
+       "keyValue": "={{ $('Cap at 5 and force test address').item.json.id }}"
+      }
+     ]
+    },
+    "matchType": "allConditions",
+    "operation": "update",
+    "resource": "row"
+   },
+   "position": [
+    896,
+    0
+   ],
+   "type": "n8n-nodes-base.dataTable",
+   "typeVersion": 1.1
+  },
+  {
+   "id": "cdf2ef0d-856f-4cb6-bd74-5420a03d3601",
+   "name": "Log test send",
+   "parameters": {
+    "columns": {
+     "mappingMode": "defineBelow",
+     "matchingColumns": [],
+     "schema": [],
+     "value": {
+      "detail": "sent to Michael inbox only; real recipient not contacted",
+      "lead_key": "={{ $('Cap at 5 and force test address').item.json.lead_key }}",
+      "logged_at": "={{ $now.toISO() }}",
+      "outcome": "test_sent",
+      "workflow": "PG - Send Approved (test)"
+     }
+    },
+    "dataTableId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "Mokhl3J3DiBVad0D"
+    },
+    "operation": "insert",
+    "resource": "row"
+   },
+   "position": [
+    1120,
+    0
+   ],
+   "type": "n8n-nodes-base.dataTable",
+   "typeVersion": 1.1
+  }
+ ],
+ "connections": {
+  "Cap at 5 and force test address": {
+   "main": [
+    [
+     {
+      "index": 0,
+      "node": "Send test email to Michael",
+      "type": "main"
+     }
+    ]
+   ]
+  },
+  "Get approved drafts": {
+   "main": [
+    [
+     {
+      "index": 0,
+      "node": "Cap at 5 and force test address",
+      "type": "main"
+     }
+    ]
+   ]
+  },
+  "Manual Trigger": {
+   "main": [
+    [
+     {
+      "index": 0,
+      "node": "Get approved drafts",
+      "type": "main"
+     }
+    ]
+   ]
+  },
+  "Mark draft sent_test": {
+   "main": [
+    [
+     {
+      "index": 0,
+      "node": "Log test send",
+      "type": "main"
+     }
+    ]
+   ]
+  },
+  "Send test email to Michael": {
+   "main": [
+    [
+     {
+      "index": 0,
+      "node": "Mark draft sent_test",
+      "type": "main"
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "availableInMCP": true,
+  "executionOrder": "v1"
+ }
+}

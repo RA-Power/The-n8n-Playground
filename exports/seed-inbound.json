@@ -1,0 +1,91 @@
+{
+ "id": "bXmFzaCuSmOhsHc3",
+ "name": "PG - Seed Inbound (test helper)",
+ "description": "Sandbox test helper, manual. Inserts 4 synthetic inbound messages.",
+ "nodes": [
+  {
+   "id": "5f0934ea-c50a-4d6a-baa2-aa56f9423a94",
+   "name": "Manual Trigger",
+   "parameters": {},
+   "position": [
+    0,
+    0
+   ],
+   "type": "n8n-nodes-base.manualTrigger",
+   "typeVersion": 1
+  },
+  {
+   "id": "0f6bdad6-82fb-47be-a8db-3a90f5402f68",
+   "name": "Synthetic inbound",
+   "parameters": {
+    "jsCode": "return [\n  { json: { from_email: 'syn.active1@example.com', message: 'STOP' } },\n  { json: { from_email: 'syn.active2@example.com', message: 'Thanks, yes lets talk next week.' } },\n  { json: { from_email: 'syn.stranger@example.com', message: 'Please unsubscribe me' } },\n  { json: { from_email: 'syn.recent@example.com', message: 'Please remove me from your list' } }\n];",
+    "language": "javaScript",
+    "mode": "runOnceForAllItems"
+   },
+   "position": [
+    224,
+    0
+   ],
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2
+  },
+  {
+   "id": "9d29562b-1560-465b-bdd3-4c75c16b99f5",
+   "name": "Insert inbound",
+   "parameters": {
+    "columns": {
+     "mappingMode": "defineBelow",
+     "matchingColumns": [],
+     "schema": [],
+     "value": {
+      "from_email": "={{ $json.from_email }}",
+      "message": "={{ $json.message }}",
+      "processed": "no",
+      "received_at": "={{ $now.toISO() }}"
+     }
+    },
+    "dataTableId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "0AuP5h55XvnsQbfD"
+    },
+    "operation": "insert",
+    "resource": "row"
+   },
+   "position": [
+    448,
+    0
+   ],
+   "type": "n8n-nodes-base.dataTable",
+   "typeVersion": 1.1
+  }
+ ],
+ "connections": {
+  "Manual Trigger": {
+   "main": [
+    [
+     {
+      "index": 0,
+      "node": "Synthetic inbound",
+      "type": "main"
+     }
+    ]
+   ]
+  },
+  "Synthetic inbound": {
+   "main": [
+    [
+     {
+      "index": 0,
+      "node": "Insert inbound",
+      "type": "main"
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "availableInMCP": true,
+  "executionOrder": "v1"
+ }
+}

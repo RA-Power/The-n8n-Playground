@@ -1,0 +1,208 @@
+{
+ "id": "rTMXfAufpJVD3CAx",
+ "name": "PG - Test Sender",
+ "description": "Synthetic sandbox. Manual: sends T5, T7, T8 to the PG intake webhook and reports PASS/FAIL. No emails.",
+ "nodes": [
+  {
+   "id": "e49a36f4-1ea5-47e0-90de-e10368039c08",
+   "name": "Manual Trigger",
+   "parameters": {},
+   "position": [
+    -20,
+    0
+   ],
+   "type": "n8n-nodes-base.manualTrigger",
+   "typeVersion": 1
+  },
+  {
+   "id": "a6623d0b-1f62-4244-bdb9-8acbf5c2fe94",
+   "name": "Synthetic cases",
+   "parameters": {
+    "jsCode": "// Synthetic cases only: example.com addresses, made-up text, no real people.\nconst stamp = Date.now().toString(36);\nconst good = { name: 'Synthetic Buyer One', email: 'synthetic.buyer1.' + stamp + '@example.com', phone: '555-0100', source: 'pg-test', message: 'Synthetic inquiry: interested in a three-bedroom home. Test data only.' };\nconst long = { name: 'Synthetic Buyer Three', email: 'synthetic.long.' + stamp + '@example.com', phone: '555-0102', source: 'pg-test', message: 'x'.repeat(2001) };\nconst err = { name: 'Synthetic Buyer Four', email: 'synthetic.err.' + stamp + '@example.com', phone: '555-0103', source: 'pg-force-error', message: 'Synthetic forced error. Test data only.' };\nconst cases = [\n  { case: 'T5', description: 'oversize message is rejected', auth: true, payload: long, expect_code: 400, expect_status: 'rejected' },\n  { case: 'T7', description: 'forced error is caught by the error workflow', auth: true, payload: err, expect_code: 500, expect_status: '' },\n  { case: 'T8', description: 'request without the key is refused', auth: false, payload: good, expect_code: 403, expect_status: '' }\n];\nreturn cases.map(function (c) { return { json: c }; });",
+    "language": "javaScript",
+    "mode": "runOnceForAllItems"
+   },
+   "position": [
+    220,
+    0
+   ],
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2
+  },
+  {
+   "id": "11fe7e3b-d413-41e2-9ef1-461ff1d31c80",
+   "name": "Pick key cases",
+   "parameters": {
+    "jsCode": "return $input.all().filter(function (i) { return i.json.auth === true; });",
+    "language": "javaScript",
+    "mode": "runOnceForAllItems"
+   },
+   "position": [
+    460,
+    0
+   ],
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2
+  },
+  {
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "079p9QBOgk299kHt",
+     "name": "PG Webhook Secret"
+    }
+   },
+   "id": "e69583a2-1cfb-48f5-a2a4-c19d61897ce6",
+   "name": "Send with key",
+   "parameters": {
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth",
+    "jsonBody": "={{ JSON.stringify($json.payload) }}",
+    "method": "POST",
+    "options": {
+     "response": {
+      "response": {
+       "fullResponse": true,
+       "neverError": true
+      }
+     }
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "url": "https://rapower.app.n8n.cloud/webhook/pg-inquiry-intake"
+   },
+   "position": [
+    700,
+    0
+   ],
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2
+  },
+  {
+   "id": "bffa3818-5682-4014-bd55-33dc4d94060a",
+   "name": "Pick no-key case",
+   "parameters": {
+    "jsCode": "return $('Synthetic cases').all().filter(function (i) { return i.json.auth === false; });",
+    "language": "javaScript",
+    "mode": "runOnceForAllItems"
+   },
+   "position": [
+    940,
+    0
+   ],
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2
+  },
+  {
+   "id": "f2d0b0a7-1957-4626-9244-c90d16ff7237",
+   "name": "Send without key",
+   "parameters": {
+    "jsonBody": "={{ JSON.stringify($json.payload) }}",
+    "method": "POST",
+    "options": {
+     "response": {
+      "response": {
+       "fullResponse": true,
+       "neverError": true
+      }
+     }
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "url": "https://rapower.app.n8n.cloud/webhook/pg-inquiry-intake"
+   },
+   "position": [
+    1180,
+    0
+   ],
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2
+  },
+  {
+   "id": "938b01bb-f4c5-496c-b17e-b5c2aabaa721",
+   "name": "Check results",
+   "parameters": {
+    "jsCode": "const all = $('Synthetic cases').all().map(function (i) { return i.json; });\nconst withKey = $('Send with key').all().map(function (i) { return i.json; });\nconst noKey = $('Send without key').all().map(function (i) { return i.json; });\nlet a = 0;\nlet b = 0;\nreturn all.map(function (c) {\n  const res = c.auth ? withKey[a++] : noKey[b++];\n  const code = res ? res.statusCode : null;\n  let body = res ? res.body : undefined;\n  if (typeof body === 'string') { try { body = JSON.parse(body); } catch (e) {} }\n  const status = body && body.status ? body.status : '';\n  const pass = code === c.expect_code && (!c.expect_status || status === c.expect_status);\n  return { json: { case: c.case, description: c.description, expected: c.expect_code + (c.expect_status ? ' ' + c.expect_status : ''), got: String(code) + (status ? ' ' + status : ''), result: pass ? 'PASS' : 'FAIL' } };\n});",
+    "language": "javaScript",
+    "mode": "runOnceForAllItems"
+   },
+   "position": [
+    1420,
+    0
+   ],
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2
+  }
+ ],
+ "connections": {
+  "Manual Trigger": {
+   "main": [
+    [
+     {
+      "index": 0,
+      "node": "Synthetic cases",
+      "type": "main"
+     }
+    ]
+   ]
+  },
+  "Pick key cases": {
+   "main": [
+    [
+     {
+      "index": 0,
+      "node": "Send with key",
+      "type": "main"
+     }
+    ]
+   ]
+  },
+  "Pick no-key case": {
+   "main": [
+    [
+     {
+      "index": 0,
+      "node": "Send without key",
+      "type": "main"
+     }
+    ]
+   ]
+  },
+  "Send with key": {
+   "main": [
+    [
+     {
+      "index": 0,
+      "node": "Pick no-key case",
+      "type": "main"
+     }
+    ]
+   ]
+  },
+  "Send without key": {
+   "main": [
+    [
+     {
+      "index": 0,
+      "node": "Check results",
+      "type": "main"
+     }
+    ]
+   ]
+  },
+  "Synthetic cases": {
+   "main": [
+    [
+     {
+      "index": 0,
+      "node": "Pick key cases",
+      "type": "main"
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "availableInMCP": true,
+  "executionOrder": "v1"
+ }
+}

@@ -1,0 +1,113 @@
+{
+ "id": "3rHlMD42KYExOvMW",
+ "name": "PG - Test Decision Link",
+ "description": "Sandbox, manual. Inserts one synthetic pending draft, then approves it via the real decision webhook using the stored PG Webhook Secret credential. No emails.",
+ "nodes": [
+  {
+   "id": "2f62fce5-be94-43dd-86ed-99f5adf09443",
+   "name": "Manual Trigger",
+   "parameters": {},
+   "position": [
+    0,
+    0
+   ],
+   "type": "n8n-nodes-base.manualTrigger",
+   "typeVersion": 1
+  },
+  {
+   "id": "555d8a5d-7134-40a3-a3ae-1f4ff389387f",
+   "name": "Seed one pending draft",
+   "parameters": {
+    "columns": {
+     "mappingMode": "defineBelow",
+     "matchingColumns": [],
+     "schema": [],
+     "value": {
+      "decided_at": "",
+      "decision_note": "",
+      "draft_body": "Hi Synthetic,\n\nSynthetic draft for the approval-link test.\n\n[DRAFT - NOT SENT - requires human approval]",
+      "draft_subject": "Re: your inquiry",
+      "email": "synthetic.decision.t9@example.com",
+      "lead_key": "synthetic.decision.t9@example.com|synthetic: link approval test. test data only.",
+      "name": "Synthetic Link Test",
+      "status": "pending"
+     }
+    },
+    "dataTableId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "Dk3MTDtDuKcTf9JD"
+    },
+    "operation": "insert",
+    "resource": "row"
+   },
+   "position": [
+    224,
+    0
+   ],
+   "type": "n8n-nodes-base.dataTable",
+   "typeVersion": 1.1
+  },
+  {
+   "credentials": {
+    "httpHeaderAuth": {
+     "id": "079p9QBOgk299kHt",
+     "name": "PG Webhook Secret"
+    }
+   },
+   "id": "78c98042-65ea-4749-81c0-48a5a1bdd5b5",
+   "name": "Approve via decision link",
+   "parameters": {
+    "authentication": "genericCredentialType",
+    "genericAuthType": "httpHeaderAuth",
+    "jsonBody": "={{ JSON.stringify({ lead_key: 'synthetic.decision.t9@example.com|synthetic: link approval test. test data only.', decision: 'approve', note: 'Synthetic link approve' }) }}",
+    "method": "POST",
+    "options": {
+     "response": {
+      "response": {
+       "fullResponse": true,
+       "neverError": true
+      }
+     }
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "url": "https://rapower.app.n8n.cloud/webhook/pg-draft-decision"
+   },
+   "position": [
+    448,
+    0
+   ],
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2
+  }
+ ],
+ "connections": {
+  "Manual Trigger": {
+   "main": [
+    [
+     {
+      "index": 0,
+      "node": "Seed one pending draft",
+      "type": "main"
+     }
+    ]
+   ]
+  },
+  "Seed one pending draft": {
+   "main": [
+    [
+     {
+      "index": 0,
+      "node": "Approve via decision link",
+      "type": "main"
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "availableInMCP": true,
+  "executionOrder": "v1"
+ }
+}
