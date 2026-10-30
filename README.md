@@ -13,9 +13,9 @@ All work is in n8n project **PG-Sandbox**, on synthetic data. "Tested" means obs
 | 2b AI drafting | PG - AI Draft Test | **Tested once.** 3 synthetic leads, Claude Haiku 5.5 on Gateway credits, 955 tokens, cost under one cent (balance still $1.99). Not wired into Draft Replies. |
 | 2c Send step | PG - Send Approved (test) | **Tested.** 5 emails to Michael's own inbox only (address hard-coded, max 5 per run, subject tagged). No lead address is ever used. |
 | 3 Keep-in-touch | PG - Keep in Touch Drafts | **Built and tested, draft-only.** Guards: opted-out/replied, 90-day gap, 3-touch cap, no duplicate pending draft. No send, no reply detector. |
-| 4 Showing scheduler | PG - Showing Proposals, PG - Showing Hold | **Built and tested without Telegram or Calendar.** Hold is a table row, double-booking guard works. |
+| 4 Showing scheduler | PG - Showing Proposals, PG - Showing Hold, PG - Showing Telegram Notify, PG - Showing Approval (Telegram), PG - Calendar Test (helper) | **Built and tested (synthetic).** Telegram Approve/Decline tested 2026-10-30 (Approve, Approve, Decline; double-booking guard moved the second request to 14:30). Google Calendar create, read back, delete tested once on the owner's own calendar (0 attendees). Not yet wired together: approval does not write the calendar. Tap handler and listener are unpublished. |
 | 5 Action log + errors | pg_action_log, PG - Error Logger | **Built and tested.** Every outcome logged; crashes logged by the error workflow. |
-| Test helpers | Test Sender, Test Sender 2, Batch Approve, Test Decision Link, Approve Showings, Seed Builds 3-4 | Synthetic only. Delete before any client delivery. |
+| Test helpers | Test Sender, Test Sender 2, Batch Approve, Test Decision Link, Approve Showings, Seed Builds 3-4, Seed Telegram Test, Calendar Test, Telegram Listener | Synthetic only. Delete before any client delivery. |
 
 Superseded: `workflows/*.json` (early paste-import drafts, never imported).
 
