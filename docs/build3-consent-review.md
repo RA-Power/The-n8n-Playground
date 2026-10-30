@@ -1,6 +1,8 @@
 # Build 3 (keep-in-touch): consent design review, before any real contact
 
-Status: reviewed 2026-10-30 against the sandbox build. Nothing here authorizes contacting a real person.
+Status: reviewed 2026-10-30 against the sandbox build, then revised after a blind review.
+
+**Bottom line: not ready for real contact.** The tested guards work on synthetic data, but see gaps 13-19 below. Nothing here authorizes contacting a real person.
 Not legal advice. Which rules apply (CAN-SPAM in the US, plus any state rules and the client's own policy) must be confirmed for each client before launch.
 
 ## What the build enforces today (tested on synthetic data)
@@ -31,5 +33,13 @@ Not legal advice. Which rules apply (CAN-SPAM in the US, plus any state rules an
 11. **Watcher limits.** It reads at most 10 messages from the last 3 days and only subjects starting "Re: [PG TEST". A real build needs its own search rule, paging and a miss alarm.
 12. **Cancel-approved-on-reply is unproven on its own.** The send-time re-check is the tested backstop.
 
+13. **The watcher cannot see real replies.** Its search is limited to subjects starting "Re: [PG TEST". A real reply to "Checking in" would be missed, the contact would stay active, and the next nudge could go out. Test scope only.
+14. **Manual ordering.** Captured replies are not acted on until Reply Intake runs, and the send step does not check unprocessed replies. Real use needs capture and intake as one step before any send.
+15. **Send is not idempotent.** Order is email, mark nudge, count touch; a failure between steps can re-send.
+16. **Approval is weak.** A status flip, no approver or expiry, and the body can change after approval. Real use should freeze the approved text.
+17. **Matching by exact contact key and email.** Duplicate contacts and plus-addresses can escape suppression. The send guard now also suppresses by email address and one-per-contact-per-run, but this is built, not tested live.
+18. **Unknown senders** who say STOP are only logged, never suppressed.
+19. **Fixed after the review (table-tested):** an opted-out contact can no longer be downgraded to replied by a later message; opt-out phrases widened ("don't email me", "take me off", "unsubscribed"). Phrase matching is still keyword-based and English only.
+
 ## Recommendation
-Keep Build 3 draft-and-approve only for the first client pilot. Do not enable automatic sending. Close gaps 1, 2, 4, 6 and 9 and get the client's written confirmation on 5 before the first real contact.
+Keep Build 3 draft-and-approve only for the first client pilot. Do not enable automatic sending. Before the first real contact close gaps 1, 2, 4, 6, 9, 13, 14, 15 and 16, and get the client's written confirmation on 5.

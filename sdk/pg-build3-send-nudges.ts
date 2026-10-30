@@ -8,20 +8,35 @@ const getN = node({ type: 'n8n-nodes-base.dataTable', version: 1.1, config: { na
 const getC = node({ type: 'n8n-nodes-base.dataTable', version: 1.1, config: { name: 'Get contacts now', executeOnce: true, parameters: {
   resource: 'row', operation: 'get', dataTableId: { __rl: true, mode: 'id', value: CONTACTS }, returnAll: true } } });
 const guard = node({ type: 'n8n-nodes-base.code', version: 2, config: { name: 'Consent check and cap', parameters: { mode: 'runOnceForAllItems', language: 'javaScript', jsCode: `const MAX = 3;
+const MAX_TOUCHES = 3;
+const MIN_DAYS = 90;
 const TEST_TO = 'michael.henry.miller@remote-advisor.com';
 const today = new Date().toISOString().slice(0, 10);
+function daysSince(d) { return Math.floor((new Date(today) - new Date(d)) / 86400000); }
 const contacts = {};
-$input.all().forEach(function (i) { if (i.json && i.json.contact_key) { contacts[i.json.contact_key] = i.json; } });
+const suppressed = {};
+$input.all().forEach(function (i) {
+  const c = i.json;
+  if (!c || !c.contact_key) { return; }
+  const prev = contacts[c.contact_key];
+  if (!prev || c.status !== 'active') { contacts[c.contact_key] = c; }
+  if (c.status !== 'active' && c.email) { suppressed[String(c.email).toLowerCase()] = true; }
+});
 const nudges = $('Get approved nudges').all().map(function (i) { return i.json; }).filter(function (n) { return n && n.id; }).sort(function (a, b) { return Number(a.id) - Number(b.id); });
 let sent = 0;
+const sentBy = {};
 return nudges.map(function (n) {
   const c = contacts[n.contact_key];
   let action = 'send';
   let outcome = 'nudge_sent_test';
+  const already = sentBy[n.contact_key] || 0;
   if (!c || c.status !== 'active') { action = 'block'; outcome = 'nudge_blocked_not_active'; }
-  else if (Number(c.touches_12m || 0) >= 3) { action = 'block'; outcome = 'nudge_blocked_touch_cap'; }
+  else if (suppressed[String(n.email || '').toLowerCase()]) { action = 'block'; outcome = 'nudge_blocked_suppressed_email'; }
+  else if (Number(c.touches_12m || 0) + already >= MAX_TOUCHES) { action = 'block'; outcome = 'nudge_blocked_touch_cap'; }
+  else if (c.last_contacted && daysSince(c.last_contacted) < MIN_DAYS) { action = 'block'; outcome = 'nudge_blocked_90_day_gap'; }
+  else if (already >= 1) { action = 'block'; outcome = 'nudge_deferred_one_per_contact'; }
   else if (sent >= MAX) { action = 'block'; outcome = 'nudge_deferred_run_cap'; }
-  else { sent += 1; }
+  else { sent += 1; sentBy[n.contact_key] = already + 1; }
   return { json: { action: action, outcome: outcome, id: n.id, contact_key: n.contact_key, original_to: n.email, to: TEST_TO,
     subject: '[PG TEST - synthetic] ' + n.draft_subject,
     body: 'SANDBOX TEST. This would have gone to: ' + n.email + '\\n----------\\n\\n' + String(n.draft_body).replace('[DRAFT - NOT SENT - requires human approval]', ''),

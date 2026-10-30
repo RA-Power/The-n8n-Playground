@@ -1,6 +1,6 @@
 # Builds 3 and 4: live test results (2026-10-30, synthetic data, sends to Michael only)
 
-Run log (Method F): approval envelope given by Michael in chat. Cap 8 side-effecting runs (runs that email, write to the calendar, post to Telegram or read the inbox), 7 used. Table-only helper runs (seeding, staging, drafting, Reply Intake) were not counted against the cap; there were roughly a dozen of them, listed in the cleanup note below.
+Run log (Method F): approval envelope given by Michael in chat. Cap 8 side-effecting runs (runs that email, write to the calendar, post to Telegram or read the inbox), 8 used (the 8th sent nothing). Table-only helper runs (seeding, staging, drafting, Reply Intake) were not counted against the cap; there were roughly a dozen of them, listed in the cleanup note below.
 
 ## How to read this document: what the evidence is
 - Every PASS below rests on **n8n run logs and table rows read back after each run** (pg_action_log and the data tables) plus, for the calendar, the log of the event read-back. It does not rest on reading the code.
@@ -33,6 +33,15 @@ Not tested live: Decline path after the edit (it passed before the edit, so it i
 | Watcher re-run added no duplicate row | PASS |
 Not tested live: plain (non-STOP) reply through the watcher; STOP matching is a keyword match anywhere in the text, so a phrase like "please don't stop by" would opt a contact out; watcher reads at most 10 messages from the last 3 days with a subject starting "Re: [PG TEST", so older, more numerous or retitled replies are missed; unknown-sender inbound; bad-email, 90-day-gap and empty last-contacted skips beyond the original seeded cases; touch counts and dates ran on seeded values only; sending to a real recipient (the send step is hard-wired to Michael's address); replies from a different mail client; touch-cap block at send time; watcher against real client volume.
 
+## Second round after blind review (table-only tests plus run 8)
+| Check | Result |
+|---|---|
+| Opted-out contact replies "thanks": stays opted_out, logged contact_reply_still_opted_out | PASS (1 case, synthetic row) |
+| "Please don't email me again" and "Take me off your list" set opted_out | PASS (2 phrases, synthetic rows) |
+| Ordinary reply sets replied | PASS |
+| Rewritten send guard ran without error; touch-capped contact blocked, opted-out contact blocked, no email | PASS (run 8; 2 branches only) |
+Built but not run: one-per-contact-per-run, in-run touch counting, 90-day gap at send, suppression by email address.
+
 ## Defects found and fixed during the loop
 1. Keep in Touch created duplicate drafts (8 rows for 4 contacts): the contacts lookup ran once per existing draft row. Fixed with run-once setting and a per-run dedupe; re-run produced no extra rows.
 2. Approved-but-unsent drafts did not block a new draft. Fixed: pending or approved both block.
@@ -41,3 +50,9 @@ Not tested live: plain (non-STOP) reply through the watcher; STOP matching is a 
 
 ## Helper runs not counted against the cap
 Seed Build 3 live contacts, Keep in Touch drafts (3 runs: first drafts, fix check, none sent), Approve Nudges helper, Seed Telegram test, Showing Proposals, Reply Intake (1), Stage Live Tests helper. All wrote only to sandbox tables. Helper workflows remain in the sandbox and must be deleted before any client delivery.
+
+## Known limits found by blind review that were NOT fixed (decisions or later builds)
+- The inbox watcher only sees subjects starting "Re: [PG TEST". A real reply to "Checking in" would not be captured. This is test scope; real use needs a broader search and Michael's or the client's approval for the mailbox scope.
+- Replies wait at processed=no until Reply Intake is run; the send step does not look at unprocessed inbound rows.
+- Send order is email, then mark nudge, then count the touch; a failure between steps could re-send on the next run. Approval is a status flip with no approver, time or expiry, and the body can be edited after approval.
+- Duplicate contacts with the same email, plus-address replies, bounces, complaints, unknown-sender opt-outs and owner notification on replies are not handled.
