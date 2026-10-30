@@ -27,5 +27,9 @@ Not legal advice. Which rules apply (CAN-SPAM in the US, plus any state rules an
 8. **Retention.** How long inbound reply text and contact records are kept is undecided.
 9. **Human review of replies.** A reply sets a status but nobody is notified. A real build should alert the owner on any reply.
 
+10. **Opt-out matching is a substring match.** "stop" anywhere in a reply counts, so a harmless sentence can opt someone out (safe direction, but loses a real conversation), while phrasing without the listed words is missed (unsafe direction). Route unclear replies to a human.
+11. **Watcher limits.** It reads at most 10 messages from the last 3 days and only subjects starting "Re: [PG TEST". A real build needs its own search rule, paging and a miss alarm.
+12. **Cancel-approved-on-reply is unproven on its own.** The send-time re-check is the tested backstop.
+
 ## Recommendation
 Keep Build 3 draft-and-approve only for the first client pilot. Do not enable automatic sending. Close gaps 1, 2, 4, 6 and 9 and get the client's written confirmation on 5 before the first real contact.

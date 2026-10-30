@@ -12,7 +12,7 @@ const getNudges = node({
 
 const getContacts = node({
   type: 'n8n-nodes-base.dataTable', version: 1.1,
-  config: { name: 'Get contacts', parameters: {
+  config: { name: 'Get contacts', executeOnce: true, parameters: {
     resource: 'row', operation: 'get', dataTableId: { __rl: true, mode: 'id', value: CONTACTS }, returnAll: true } }
 });
 
@@ -22,14 +22,17 @@ const decide = node({
 const MIN_DAYS = 90;
 const MAX_TOUCHES = 3;
 const pending = {};
-$('Get nudges').all().forEach(function (i) { if (i.json && i.json.contact_key && i.json.status === 'pending') { pending[i.json.contact_key] = true; } });
+$('Get nudges').all().forEach(function (i) { if (i.json && i.json.contact_key && (i.json.status === 'pending' || i.json.status === 'approved')) { pending[i.json.contact_key] = true; } });
 function daysSince(d) { return Math.floor((new Date(today) - new Date(d)) / 86400000); }
 const out = [];
+const done = {};
 $input.all().forEach(function (i) {
   const c = i.json;
   let action = 'draft';
   let reason = 'eligible';
   if (!c.contact_key) { return; }
+  if (done[c.contact_key]) { return; }
+  done[c.contact_key] = true;
   if (c.status !== 'active') { action = 'skip'; reason = 'status_' + c.status; }
   else if (!/^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/.test(String(c.email || ''))) { action = 'skip'; reason = 'bad_email'; }
   else if (Number(c.touches_12m || 0) >= MAX_TOUCHES) { action = 'skip'; reason = 'touch_cap_reached'; }

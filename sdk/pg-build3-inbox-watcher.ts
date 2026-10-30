@@ -19,7 +19,7 @@ $('Read matching mail').all().forEach(function (i) {
   const am = /<([^>]+)>/.exec(fromRaw);
   const email = (am ? am[1] : fromRaw).trim().toLowerCase();
   if (!email) { return; }
-  const text = String(j.snippet || '').split(/On .{0,80} wrote:/)[0].trim().slice(0, 300);
+  const text = String(j.snippet || '').split(/\\s*On .{0,250}?wrote:/)[0].trim().slice(0, 300);
   out.push({ json: { from_email: email, message: '[gid:' + id + '] ' + text } });
   seen[id] = true;
 });
